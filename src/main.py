@@ -61,6 +61,18 @@ def _print_tree(node, indent="  ", prefix=""):
         _print_tree(child, child_indent, child_prefix)
 
 
+def _count_phases(args) -> int:
+    """Count the number of pipeline phases for progress bar."""
+    phases = 1  # decomposition always runs
+    if not args.skip_vv:
+        phases += 1
+    phases += 1  # structural validation
+    if not args.skip_judge:
+        phases += 3  # judge + refine + final judge
+    phases += 1  # save
+    return phases
+
+
 def process_dig(
     dig_id: str,
     dig_text: str,
@@ -69,9 +81,22 @@ def process_dig(
     cost_tracker: CostTracker,
 ) -> RequirementTree:
     """Process a single DIG through the full pipeline."""
-    print(f"\nProcessing DIG {dig_id}: \"{dig_text[:70]}...\"")
+    from tqdm import tqdm
+
+    total_phases = _count_phases(args)
+    desc_width = 50
+    print(f"\nDIG {dig_id}: \"{dig_text[:60]}...\"")
+
+    # Suppress console logging during progress bar (logs still go to file)
+    src_logger = logging.getLogger("src")
+    console_handlers = [h for h in src_logger.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)]
+    for h in console_handlers:
+        h.setLevel(logging.CRITICAL)
+
+    pbar = tqdm(total=total_phases, bar_format="  {l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]", leave=True)
 
     # Phase 1: Decomposition
+    pbar.set_description("Decomposing".ljust(desc_width))
     tree = decompose_dig(
         dig_id=dig_id,
         dig_text=dig_text,
@@ -81,22 +106,72 @@ def process_dig(
         skip_vv=args.skip_vv,
         cost_tracker=cost_tracker,
     )
+    pbar.update(1)
 
     if not tree.root:
-        print("  No requirements generated.")
+        pbar.set_description("No requirements generated".ljust(desc_width))
+        pbar.close()
         return tree
+
+    nodes = tree.count_nodes()
+    pbar.set_description(f"Decomposed: {nodes} requirements".ljust(desc_width))
 
     # Phase 2: V&V
     if not args.skip_vv:
+        pbar.set_description(f"Generating V&V for {nodes} requirements".ljust(desc_width))
         apply_vv_to_tree(tree, ref_data, cost_tracker)
-
-    # Print tree
-    _print_tree(tree.root)
+        pbar.update(1)
 
     # Phase 3: Structural validation
+    pbar.set_description("Structural validation".ljust(desc_width))
     structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
     error_count = sum(1 for e in structural_errors if e.severity == "error")
     warn_count = sum(1 for e in structural_errors if e.severity == "warning")
+    pbar.update(1)
+
+    # Phase 4: Semantic judge + refinement loop
+    semantic_review = None
+    if not args.skip_judge:
+        pbar.set_description("Semantic judge reviewing tree".ljust(desc_width))
+        semantic_review = run_semantic_judge(tree, cost_tracker)
+        pbar.update(1)
+
+        if semantic_review.status != "pass":
+            pbar.set_description(f"Refining tree ({len(semantic_review.issues)} issues)".ljust(desc_width))
+            tree = refine_tree(tree, semantic_review, ref_data, cost_tracker)
+
+            # Re-validate
+            structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
+            error_count = sum(1 for e in structural_errors if e.severity == "error")
+            warn_count = sum(1 for e in structural_errors if e.severity == "warning")
+        pbar.update(1)
+
+        pbar.set_description("Final judge review".ljust(desc_width))
+        semantic_review = run_semantic_judge(tree, cost_tracker)
+        pbar.update(1)
+
+    # Save
+    pbar.set_description("Saving results".ljust(desc_width))
+    tree.validation = ValidationResult(
+        structural_errors=structural_errors,
+        semantic_review=semantic_review,
+    )
+    tree.cost = cost_tracker.get_summary()
+
+    OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
+    json_path.write_text(tree.model_dump_json(indent=2))
+    pbar.update(1)
+    pbar.set_description("Done".ljust(desc_width))
+    pbar.close()
+
+    # Restore console logging
+    for h in console_handlers:
+        h.setLevel(logging.DEBUG if args.verbose else logging.INFO)
+
+    # Print results
+    print()
+    _print_tree(tree.root)
 
     if error_count == 0 and warn_count == 0:
         print(f"  Structural validation   \u2713 passed")
@@ -105,58 +180,15 @@ def process_dig(
         for issue in structural_errors:
             print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
 
-    # Phase 4: Semantic judge + refinement loop
-    semantic_review = None
-    if not args.skip_judge:
-        semantic_review = run_semantic_judge(tree, cost_tracker)
+    if semantic_review:
         if semantic_review.status == "pass":
             print(f"  Semantic judge          \u2713 passed")
         else:
-            print(f"  Semantic judge          \u26a0 {len(semantic_review.issues)} issue(s)")
+            print(f"  Semantic judge          \u26a0 {len(semantic_review.issues)} remaining issue(s)")
             for issue in semantic_review.issues:
                 print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
 
-            # Phase 5: Refine tree based on judge feedback
-            print(f"  Refining tree based on feedback...")
-            tree = refine_tree(tree, semantic_review, ref_data, cost_tracker)
-
-            # Print refined tree
-            print(f"  Refined tree:")
-            _print_tree(tree.root)
-
-            # Re-run structural validation on refined tree
-            structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
-            error_count = sum(1 for e in structural_errors if e.severity == "error")
-            warn_count = sum(1 for e in structural_errors if e.severity == "warning")
-            if error_count == 0 and warn_count == 0:
-                print(f"  Structural validation   \u2713 passed (post-refinement)")
-            else:
-                print(f"  Structural validation   {error_count} error(s), {warn_count} warning(s) (post-refinement)")
-                for issue in structural_errors:
-                    print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
-
-            # Re-run semantic judge on refined tree
-            semantic_review = run_semantic_judge(tree, cost_tracker)
-            if semantic_review.status == "pass":
-                print(f"  Semantic judge (final)  \u2713 passed")
-            else:
-                print(f"  Semantic judge (final)  \u26a0 {len(semantic_review.issues)} remaining issue(s)")
-                for issue in semantic_review.issues:
-                    print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
-
-    tree.validation = ValidationResult(
-        structural_errors=structural_errors,
-        semantic_review=semantic_review,
-    )
-    tree.cost = cost_tracker.get_summary()
-
-    # Save JSON
-    OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
-    json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
-    json_path.write_text(tree.model_dump_json(indent=2))
-    print(f"  Saved JSON: {json_path}")
-
-    # Cost line
+    print(f"  Saved: {json_path}")
     print(f"\n{cost_tracker.format_cost_line()}")
     total_nodes = tree.count_nodes()
     max_d = tree.max_depth()
@@ -275,8 +307,16 @@ def main():
         print(f"  {output_path}")
         return
 
-    # Load workbook
+    # Load workbook (suppress loader's console logging for clean output)
+    src_logger = logging.getLogger("src")
+    console_handlers = [h for h in src_logger.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)]
+    for h in console_handlers:
+        h.setLevel(logging.CRITICAL)
+    print(f"Loading {xlsx_path.name}...", end=" ", flush=True)
     ref_data = load_workbook_data(xlsx_path)
+    print(f"{len(ref_data.digs)} DIGs found.")
+    for h in console_handlers:
+        h.setLevel(logging.DEBUG if args.verbose else logging.INFO)
 
     # Parse DIG IDs (supports comma-separated: --dig 9584,9646,9742)
     dig_ids = []
@@ -310,14 +350,13 @@ def main():
             tree = process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, cost_tracker)
             trees.append(tree)
 
-        # Auto-export to xlsx if multiple DIGs
-        if len(trees) > 1:
-            OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
-            output_path = OUTPUT_XLSX_DIR / "results.xlsx"
-            export_trees_to_xlsx(trees, output_path)
-            total_reqs = sum(t.count_nodes() for t in trees)
-            print(f"\nExported {len(trees)} DIGs ({total_reqs} requirements) to:")
-            print(f"  {output_path}")
+        # Auto-export to xlsx
+        OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
+        output_path = OUTPUT_XLSX_DIR / "results.xlsx"
+        export_trees_to_xlsx(trees, output_path)
+        total_reqs = sum(t.count_nodes() for t in trees)
+        print(f"\nExported {len(trees)} DIG(s) ({total_reqs} requirements) to:")
+        print(f"  {output_path}")
         return
 
     # Batch mode
