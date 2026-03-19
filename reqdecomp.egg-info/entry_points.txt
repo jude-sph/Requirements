@@ -1,0 +1,3 @@
+[console_scripts]
+reqdecomp = src.main:main
+reqdecomp-setup = scripts.configure:main
