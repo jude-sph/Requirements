@@ -25,9 +25,16 @@ DEFAULT_MAX_BREADTH = 3
 
 # Pricing (USD per million tokens)
 MODEL_PRICING = {
+    # Anthropic direct
     "claude-sonnet-4-6": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
     "claude-opus-4-6": {"input_per_mtok": 15.00, "output_per_mtok": 75.00},
     "claude-haiku-4-5": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
+    # OpenRouter models
+    "anthropic/claude-sonnet-4": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
+    "anthropic/claude-haiku-4": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
+    "google/gemini-2.5-flash": {"input_per_mtok": 0.15, "output_per_mtok": 0.60},
+    "deepseek/deepseek-chat-v3-0324": {"input_per_mtok": 0.27, "output_per_mtok": 1.10},
+    "openai/gpt-4o-mini": {"input_per_mtok": 0.15, "output_per_mtok": 0.60},
 }
 
 # Level names

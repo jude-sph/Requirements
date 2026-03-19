@@ -172,6 +172,7 @@ def main():
     group.add_argument("--dig", type=str, help="Process a single DIG by DNG ID")
     group.add_argument("--all", action="store_true", help="Process all DIGs")
     group.add_argument("--export-only", action="store_true", help="Export existing JSON to xlsx")
+    group.add_argument("--setup", action="store_true", help="Configure model and API keys")
 
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help=f"Max decomposition depth (default: {DEFAULT_MAX_DEPTH})")
     parser.add_argument("--max-breadth", type=int, default=DEFAULT_MAX_BREADTH, help=f"Max children per node (default: {DEFAULT_MAX_BREADTH})")
@@ -183,6 +184,13 @@ def main():
     parser.add_argument("--input", type=str, default=None, help="Path to input xlsx (default: GTR-SDS.xlsx)")
 
     args = parser.parse_args()
+
+    # Setup mode (no logging needed)
+    if args.setup:
+        import subprocess
+        subprocess.run([sys.executable, str(Path(__file__).parent.parent / "scripts" / "configure.py")])
+        return
+
     setup_logging(args.verbose)
 
     xlsx_path = Path(args.input) if args.input else XLSX_PATH
