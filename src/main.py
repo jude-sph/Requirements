@@ -16,6 +16,7 @@ from src.decomposer import decompose_dig
 from src.exporter import export_trees_to_xlsx
 from src.loader import load_workbook_data
 from src.models import RequirementTree, ValidationResult
+from src.refiner import refine_tree
 from src.validator import run_semantic_judge, validate_tree_structure
 from src.verifier import apply_vv_to_tree
 
@@ -104,7 +105,7 @@ def process_dig(
         for issue in structural_errors:
             print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
 
-    # Phase 4: Semantic judge
+    # Phase 4: Semantic judge + refinement loop
     semantic_review = None
     if not args.skip_judge:
         semantic_review = run_semantic_judge(tree, cost_tracker)
@@ -114,6 +115,34 @@ def process_dig(
             print(f"  Semantic judge          \u26a0 {len(semantic_review.issues)} issue(s)")
             for issue in semantic_review.issues:
                 print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
+
+            # Phase 5: Refine tree based on judge feedback
+            print(f"  Refining tree based on feedback...")
+            tree = refine_tree(tree, semantic_review, ref_data, cost_tracker)
+
+            # Print refined tree
+            print(f"  Refined tree:")
+            _print_tree(tree.root)
+
+            # Re-run structural validation on refined tree
+            structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
+            error_count = sum(1 for e in structural_errors if e.severity == "error")
+            warn_count = sum(1 for e in structural_errors if e.severity == "warning")
+            if error_count == 0 and warn_count == 0:
+                print(f"  Structural validation   \u2713 passed (post-refinement)")
+            else:
+                print(f"  Structural validation   {error_count} error(s), {warn_count} warning(s) (post-refinement)")
+                for issue in structural_errors:
+                    print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
+
+            # Re-run semantic judge on refined tree
+            semantic_review = run_semantic_judge(tree, cost_tracker)
+            if semantic_review.status == "pass":
+                print(f"  Semantic judge (final)  \u2713 passed")
+            else:
+                print(f"  Semantic judge (final)  \u26a0 {len(semantic_review.issues)} remaining issue(s)")
+                for issue in semantic_review.issues:
+                    print(f"    [{issue.severity}] {issue.node_path}: {issue.message}")
 
     tree.validation = ValidationResult(
         structural_errors=structural_errors,

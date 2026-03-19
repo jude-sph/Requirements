@@ -73,3 +73,22 @@ def format_judge_prompt(dig_id: str, dig_text: str, tree_json: str) -> str:
         dig_text=dig_text,
         tree_json=tree_json,
     )
+
+
+def format_refine_prompt(
+    dig_id: str,
+    dig_text: str,
+    tree_json: str,
+    judge_feedback: str,
+    system_hierarchy: str,
+    chapter_list: str,
+) -> str:
+    template = _load_template("refine_tree.txt")
+    return template.format(
+        dig_id=dig_id,
+        dig_text=dig_text,
+        tree_json=tree_json,
+        judge_feedback=judge_feedback,
+        system_hierarchy=system_hierarchy,
+        chapter_list=chapter_list,
+    )
