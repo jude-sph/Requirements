@@ -1,14 +1,13 @@
-import json
 import logging
-import time
-import anthropic
-from src.config import ANTHROPIC_API_KEY, MODEL
+
 from src.cost_tracker import CostTracker
+from src.llm_client import call_llm
 from src.loader import WorkbookData
 from src.models import RequirementNode, RequirementTree, ValidationIssue, ValidationResult, SemanticReview
 from src.prompts import format_judge_prompt
 
 logger = logging.getLogger(__name__)
+
 
 def validate_tree_structure(tree: RequirementTree, ref_data: WorkbookData, max_depth: int, max_breadth: int) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
@@ -46,20 +45,13 @@ def validate_tree_structure(tree: RequirementTree, ref_data: WorkbookData, max_d
     _check_node(tree.root, f"L{tree.root.level}", None)
     return issues
 
+
 def run_semantic_judge(tree: RequirementTree, cost_tracker: CostTracker) -> SemanticReview:
     logger.info("Running semantic judge...")
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     tree_json = tree.model_dump_json(indent=2, exclude={"validation", "cost"})
     prompt = format_judge_prompt(dig_id=tree.dig_id, dig_text=tree.dig_text, tree_json=tree_json)
     try:
-        resp = client.messages.create(model=MODEL, max_tokens=4096, messages=[{"role": "user", "content": prompt}])
-        text = resp.content[0].text
-        cost_tracker.record(call_type="judge", level=0, input_tokens=resp.usage.input_tokens, output_tokens=resp.usage.output_tokens)
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0]
-        result = json.loads(text.strip())
+        result = call_llm(prompt, cost_tracker, "judge", 0)
         issues = [ValidationIssue(severity=i.get("severity", "warning"), message=i.get("message", ""), node_path=i.get("node_path", "")) for i in result.get("issues", [])]
         review = SemanticReview(status=result.get("status", "flag"), issues=issues)
         logger.info(f"  Semantic judge: {review.status} ({len(issues)} issues)")

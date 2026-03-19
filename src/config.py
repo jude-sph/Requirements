@@ -14,7 +14,9 @@ OUTPUT_XLSX_DIR = PROJECT_ROOT / "output" / "xlsx"
 OUTPUT_LOGS_DIR = PROJECT_ROOT / "output" / "logs"
 
 # API
+PROVIDER = os.getenv("PROVIDER", "anthropic")  # "anthropic" or "openrouter"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
 
 # Defaults
