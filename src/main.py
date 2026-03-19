@@ -168,32 +168,37 @@ def process_dig(
 
 
 HELP_TEXT = """
-  Requirements Decomposition System
-  ──────────────────────────────────
-  Decomposes high-level shipbuilding Design Instructions and Guidelines (DIGs)
-  into multi-level formal "shall" requirements using LLMs.
+  Requirements Decomposition System (reqdecomp)
+  ──────────────────────────────────────────────
+  Decomposes high-level shipbuilding DIGs into multi-level formal "shall"
+  requirements using LLMs. Each DIG becomes a tree of requirements across
+  up to 4 levels (Ship → Major System → Subsystem → Equipment), with
+  V&V data, a semantic judge review, and automatic refinement.
 
-  Each DIG is decomposed through up to 4 levels:
-    Level 1: Whole Ship     → Level 2: Major System
-    Level 3: Subsystem      → Level 4: Equipment
+  Install:
+    git clone https://github.com/jude-sph/Requirements.git
+    cd Requirements
+    pip install -e .
 
-  At each level, the system generates:
-    - IEEE 29481 compliant "shall" statement
-    - Chapter allocation (GTR/SDS)
-    - System hierarchy mapping
-    - Verification & Validation data (5-phase acceptance)
+  First-time setup:
+    reqdecomp --setup                          Pick a model and enter API keys
 
-  After generation, a semantic judge reviews the tree and a refinement
-  step corrects any flagged issues. Final guidance is saved with results.
-
-  Quick Start:
-    reqdecomp --setup                          Configure model and API keys
+  Commands:
     reqdecomp --dig 9584                       Process one DIG
     reqdecomp --dig 9584,9646,9742             Process multiple DIGs
-    reqdecomp --dig 9584 --max-depth 2         Cheaper: only 2 levels
-    reqdecomp --all --skip-judge               Process all DIGs, no judge
-    reqdecomp --dry-run --all                  Estimate cost before running
+    reqdecomp --all                            Process all DIGs in the workbook
     reqdecomp --export-only                    Export JSON results to xlsx
+    reqdecomp --setup                          Change model or API keys
+    reqdecomp --dry-run --all                  Estimate cost before running
+
+  Cost control:
+    reqdecomp --dig 9584 --max-depth 2         Fewer levels (cheaper)
+    reqdecomp --dig 9584 --max-breadth 1       Fewer branches (cheaper)
+    reqdecomp --dig 9584 --skip-vv             Skip V&V generation (faster)
+    reqdecomp --dig 9584 --skip-judge          Skip judge + refinement (faster)
+
+  Input:
+    Place GTR-SDS.xlsx in the current directory, or use --input /path/to/file.xlsx
 
   Output:
     output/json/     Per-DIG JSON trees (source of truth)
