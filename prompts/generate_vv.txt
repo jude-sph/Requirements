@@ -1,0 +1,34 @@
+You are a verification and validation engineer for a Canadian Coast Guard Polar Icebreaker project.
+
+Your task: Generate V&V data for the following technical requirement, maximising early verification coverage across all 5 acceptance phases.
+
+## Technical Requirement
+Level: {level} ({level_name})
+Requirement: {technical_requirement}
+System: {system_hierarchy_id}
+
+## Reference: Acceptance Phases
+{acceptance_phases}
+
+## Reference: Verification Methods
+{verification_methods}
+
+## Reference: Verification Events
+{verification_events}
+
+## Output Format
+Return a JSON object with this exact structure:
+{{
+  "acceptance_criteria": "A paragraph describing how the requirement is progressively verified across the 5 phases, from design through final acceptance.",
+  "verification_method": ["method1", "method2"],
+  "verification_event": ["event1", "event2"],
+  "test_case_descriptions": ["description for method1/event1 pair", "description for method2/event2 pair"]
+}}
+
+## Rules
+- verification_method entries must be from: Test, Inspection, Demonstration, Analysis, Review, 3rd Party Cert
+- verification_event entries must be from: Design Disclosure, FAT, HAT, SAT, Customer Sea Trials, Third Party Certification
+- verification_method, verification_event, and test_case_descriptions arrays MUST have the same length
+- Each test_case_description must be specific to its corresponding method/event pair
+- Include as much early verification coverage as feasible (don't defer everything to sea trials)
+- Each test_case_description should be a single paragraph describing the technical approach
