@@ -189,6 +189,7 @@ HELP_TEXT = """
   Quick Start:
     reqdecomp --setup                          Configure model and API keys
     reqdecomp --dig 9584                       Process one DIG
+    reqdecomp --dig 9584,9646,9742             Process multiple DIGs
     reqdecomp --dig 9584 --max-depth 2         Cheaper: only 2 levels
     reqdecomp --all --skip-judge               Process all DIGs, no judge
     reqdecomp --dry-run --all                  Estimate cost before running
@@ -208,7 +209,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--dig", type=str, help="Process a single DIG by DNG ID")
+    group.add_argument("--dig", type=str, help="Process DIG(s) by DNG ID (comma-separated for multiple: 9584,9646)")
     group.add_argument("--all", action="store_true", help="Process all DIGs")
     group.add_argument("--export-only", action="store_true", help="Export existing JSON results to xlsx")
     group.add_argument("--setup", action="store_true", help="Configure model and API keys interactively")
@@ -272,12 +273,20 @@ def main():
     # Load workbook
     ref_data = load_workbook_data(xlsx_path)
 
+    # Parse DIG IDs (supports comma-separated: --dig 9584,9646,9742)
+    dig_ids = []
+    if args.dig:
+        dig_ids = [d.strip() for d in args.dig.split(",") if d.strip()]
+        missing = [d for d in dig_ids if d not in ref_data.digs]
+        if missing:
+            print(f"Error: DIG(s) not found in workbook: {', '.join(missing)}")
+            sys.exit(1)
+
     # Dry run
     if args.dry_run:
-        n = len(ref_data.digs) if args.all else 1
-        # Worst case: max_breadth^0 + max_breadth^1 + ... + max_breadth^(max_depth-1) nodes
+        n = len(ref_data.digs) if args.all else len(dig_ids)
         max_nodes = sum(args.max_breadth ** i for i in range(args.max_depth))
-        calls_per_dig = max_nodes * 2 + 1  # decompose + vv per node + 1 judge
+        calls_per_dig = max_nodes * 2 + 1
         if args.skip_vv:
             calls_per_dig = max_nodes + 1
         if args.skip_judge:
@@ -285,14 +294,25 @@ def main():
         print(f"Dry run: {n} DIGs, max {calls_per_dig} API calls/DIG, max {n * calls_per_dig} total calls")
         return
 
-    # Single DIG mode
-    if args.dig:
-        if args.dig not in ref_data.digs:
-            print(f"Error: DIG {args.dig} not found in workbook")
-            sys.exit(1)
-        dig = ref_data.digs[args.dig]
+    # Single or multi-DIG mode
+    if dig_ids:
         cost_tracker = CostTracker(model=MODEL)
-        process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, cost_tracker)
+        trees = []
+        for i, dig_id in enumerate(dig_ids, 1):
+            if len(dig_ids) > 1:
+                print(f"\n[{i}/{len(dig_ids)}]", end="")
+            dig = ref_data.digs[dig_id]
+            tree = process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, cost_tracker)
+            trees.append(tree)
+
+        # Auto-export to xlsx if multiple DIGs
+        if len(trees) > 1:
+            OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
+            output_path = OUTPUT_XLSX_DIR / "results.xlsx"
+            export_trees_to_xlsx(trees, output_path)
+            total_reqs = sum(t.count_nodes() for t in trees)
+            print(f"\nExported {len(trees)} DIGs ({total_reqs} requirements) to:")
+            print(f"  {output_path}")
         return
 
     # Batch mode
