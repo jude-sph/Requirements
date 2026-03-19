@@ -3,15 +3,20 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from current directory first, then package root as fallback
+load_dotenv(Path.cwd() / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # Paths
-PROJECT_ROOT = Path(__file__).parent.parent
-XLSX_PATH = PROJECT_ROOT / "GTR-SDS.xlsx"
-PROMPTS_DIR = PROJECT_ROOT / "prompts"
-OUTPUT_JSON_DIR = PROJECT_ROOT / "output" / "json"
-OUTPUT_XLSX_DIR = PROJECT_ROOT / "output" / "xlsx"
-OUTPUT_LOGS_DIR = PROJECT_ROOT / "output" / "logs"
+PACKAGE_ROOT = Path(__file__).parent.parent  # Where the package is installed
+PROMPTS_DIR = PACKAGE_ROOT / "prompts"       # Prompts ship with the package
+
+# Working directory paths (output goes where the user runs the command)
+CWD = Path.cwd()
+XLSX_PATH = CWD / "GTR-SDS.xlsx"             # Default input location
+OUTPUT_JSON_DIR = CWD / "output" / "json"
+OUTPUT_XLSX_DIR = CWD / "output" / "xlsx"
+OUTPUT_LOGS_DIR = CWD / "output" / "logs"
 
 # API
 PROVIDER = os.getenv("PROVIDER", "anthropic")  # "anthropic" or "openrouter"

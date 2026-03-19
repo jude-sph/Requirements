@@ -59,6 +59,24 @@ OPENROUTER_API_KEY=sk-or-...
 MODEL=google/gemini-2.5-flash
 ```
 
+## Input File
+
+Place your source xlsx file in the directory where you run the command:
+
+```bash
+cd /path/to/my/project
+cp /wherever/GTR-SDS.xlsx .
+reqdecomp --dig 9584
+```
+
+Or specify the path explicitly:
+
+```bash
+reqdecomp --dig 9584 --input /path/to/GTR-SDS.xlsx
+```
+
+The `.env` config file can live either in the current directory or in the installed package directory. Output files (`output/json/`, `output/xlsx/`, `output/logs/`) are created in the current directory.
+
 ## Usage
 
 ```bash

@@ -219,7 +219,7 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Show detailed debug output")
     parser.add_argument("--dry-run", action="store_true", help="Estimate API calls and cost without running")
     parser.add_argument("--force", action="store_true", help="Reprocess DIGs that already have output")
-    parser.add_argument("--input", type=str, default=None, help="Path to input xlsx (default: GTR-SDS.xlsx)")
+    parser.add_argument("--input", type=str, default=None, help="Path to input xlsx (default: ./GTR-SDS.xlsx in current directory)")
 
     args = parser.parse_args()
 
@@ -232,6 +232,14 @@ def main():
     setup_logging(args.verbose)
 
     xlsx_path = Path(args.input) if args.input else XLSX_PATH
+
+    # Check xlsx exists (except for export-only which doesn't need it)
+    if not args.export_only and not xlsx_path.exists():
+        print(f"Error: Input file not found: {xlsx_path}")
+        print()
+        print("Place your GTR-SDS.xlsx in the current directory, or specify a path:")
+        print(f"  reqdecomp --dig 9584 --input /path/to/your-file.xlsx")
+        sys.exit(1)
 
     # Export-only mode
     if args.export_only:
