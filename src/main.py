@@ -154,7 +154,7 @@ def process_dig(
     OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
     json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
     json_path.write_text(tree.model_dump_json(indent=2))
-    print(f"  Saved: {json_path}")
+    print(f"  Saved JSON: {json_path}")
 
     # Cost line
     print(f"\n{cost_tracker.format_cost_line()}")
@@ -162,6 +162,7 @@ def process_dig(
     max_d = tree.max_depth()
     print(f"Summary: {total_nodes} requirements generated ({max_d} levels), "
           f"{error_count} errors, {warn_count} warnings")
+    print(f"\nTo export all results to xlsx:  reqdecomp --export-only")
 
     return tree
 
@@ -231,6 +232,16 @@ def main():
 
     setup_logging(args.verbose)
 
+    # Validate provider + model compatibility
+    from src.config import PROVIDER
+    if PROVIDER == "openrouter" and not MODEL.startswith(("anthropic/", "google/", "openai/", "deepseek/", "meta-llama/")):
+        print(f"Error: Model '{MODEL}' doesn't look like an OpenRouter model ID.")
+        print(f"  Your .env has PROVIDER=openrouter but MODEL={MODEL}")
+        print()
+        print("  OpenRouter model IDs look like: anthropic/claude-sonnet-4, google/gemini-2.5-flash")
+        print("  Run 'reqdecomp --setup' to fix this, or change PROVIDER=anthropic in your .env")
+        sys.exit(1)
+
     xlsx_path = Path(args.input) if args.input else XLSX_PATH
 
     # Check xlsx exists (except for export-only which doesn't need it)
@@ -253,7 +264,9 @@ def main():
         OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
         output_path = OUTPUT_XLSX_DIR / "results.xlsx"
         export_trees_to_xlsx(trees, output_path)
-        print(f"Exported {len(trees)} DIGs to {output_path}")
+        total_reqs = sum(t.count_nodes() for t in trees)
+        print(f"Exported {len(trees)} DIGs ({total_reqs} requirements) to:")
+        print(f"  {output_path}")
         return
 
     # Load workbook
@@ -326,7 +339,10 @@ def main():
         print(f"Total tokens: {summary.total_input_tokens:,} input / {summary.total_output_tokens:,} output")
         print(f"Total cost: ${summary.total_cost_usd:.2f}")
         print(f"Time elapsed: {minutes}m {seconds}s")
-        print(f"Results: {OUTPUT_JSON_DIR} ({total} files)")
+        print(f"\nOutput:")
+        print(f"  JSON:  {OUTPUT_JSON_DIR} ({total} files)")
+        print(f"  XLSX:  {output_path}")
+        print(f"  Logs:  {OUTPUT_LOGS_DIR}")
 
 
 if __name__ == "__main__":
