@@ -222,6 +222,8 @@ HELP_TEXT = """
     reqdecomp --export-only                    Export JSON results to xlsx
     reqdecomp --setup                          Change model or API keys
     reqdecomp --dry-run --all                  Estimate cost before running
+    reqdecomp --web                            Launch web interface in browser
+    reqdecomp --web --port 3000                Web interface on custom port
 
   Cost control:
     reqdecomp --dig 9584 --max-depth 2         Fewer levels (cheaper)
@@ -250,7 +252,9 @@ def main():
     group.add_argument("--all", action="store_true", help="Process all DIGs")
     group.add_argument("--export-only", action="store_true", help="Export existing JSON results to xlsx")
     group.add_argument("--setup", action="store_true", help="Configure model and API keys interactively")
+    group.add_argument("--web", action="store_true", help="Launch web interface in browser")
 
+    parser.add_argument("--port", type=int, default=8000, help="Port for web interface (default: 8000)")
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help=f"Max decomposition depth, 1-4 (default: {DEFAULT_MAX_DEPTH})")
     parser.add_argument("--max-breadth", type=int, default=DEFAULT_MAX_BREADTH, help=f"Max children per node (default: {DEFAULT_MAX_BREADTH})")
     parser.add_argument("--skip-vv", action="store_true", help="Skip V&V generation (faster, cheaper)")
@@ -266,6 +270,11 @@ def main():
     if args.setup:
         import subprocess
         subprocess.run([sys.executable, str(Path(__file__).parent.parent / "scripts" / "configure.py")])
+        return
+
+    if args.web:
+        from src.web.app import start_server
+        start_server(port=args.port)
         return
 
     setup_logging(args.verbose)

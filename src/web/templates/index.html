@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>reqdecomp — Requirements Decomposition</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-left">
+            <span class="logo">reqdecomp</span>
+            <span class="version">v0.1.0</span>
+        </div>
+        <div class="header-right">
+            <span id="model-indicator" class="model-indicator">
+                <span class="dot"></span>
+                <span id="model-name">{{ model }}</span>
+            </span>
+            <button class="btn-icon" onclick="openSettings()">⚙ Settings</button>
+        </div>
+    </header>
+
+    <!-- Error banner -->
+    <div id="error-banner" class="error-banner" style="display:none">
+        <span id="error-text"></span>
+        <button onclick="this.parentElement.style.display='none'">✕</button>
+    </div>
+
+    <!-- Input Section -->
+    <section class="input-section">
+        <div class="section-label">Input</div>
+        <div class="input-row">
+            <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">
+                <input type="file" id="file-input" accept=".xlsx" style="display:none" onchange="handleUpload(this)">
+                <div id="upload-text">
+                    {% if dig_count > 0 %}
+                        📄 GTR-SDS.xlsx loaded — {{ dig_count }} DIGs
+                    {% else %}
+                        📂 Drop xlsx here or click to upload
+                    {% endif %}
+                </div>
+            </div>
+            <div class="controls">
+                <div class="slider-row">
+                    <label>Depth</label>
+                    <input type="range" id="depth" min="1" max="4" value="3" oninput="this.nextElementSibling.textContent=this.value">
+                    <span>3</span>
+                </div>
+                <div class="slider-row">
+                    <label>Breadth</label>
+                    <input type="range" id="breadth" min="1" max="5" value="2" oninput="this.nextElementSibling.textContent=this.value">
+                    <span>2</span>
+                </div>
+                <div class="checkbox-row">
+                    <label><input type="checkbox" id="vv" checked> V&V</label>
+                    <label><input type="checkbox" id="judge" checked> Judge</label>
+                </div>
+            </div>
+        </div>
+        <div class="action-row">
+            <input type="text" id="dig-ids" class="dig-input" placeholder="DIG IDs (e.g. 9584,9646) or blank for all">
+            <button class="btn-run" onclick="startRun()">▶ Run</button>
+            <button class="btn-secondary" onclick="estimateCost()">Est. Cost</button>
+        </div>
+    </section>
+
+    <!-- Progress Section -->
+    <section id="progress-section" class="progress-section" style="display:none">
+        <div class="progress-header">
+            <span id="progress-label">Processing...</span>
+            <span id="progress-cost" class="progress-cost"></span>
+        </div>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+        </div>
+        <div class="progress-footer">
+            <span id="progress-detail" class="progress-detail"></span>
+            <button class="btn-cancel" onclick="cancelJob()">Cancel</button>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results-section" class="results-section">
+        <div class="results-header">
+            <div class="section-label" id="results-label">Results</div>
+            <button class="btn-export" onclick="downloadXlsx()">⬇ Download XLSX</button>
+        </div>
+        <div id="results-list"></div>
+    </section>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="btn-icon" onclick="closeSettings()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="settings-model" onchange="onModelChange()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Anthropic API Key</label>
+                    <input type="password" id="settings-anthropic-key" placeholder="sk-ant-...">
+                    <small id="anthropic-key-status"></small>
+                </div>
+                <div class="form-group">
+                    <label>OpenRouter API Key</label>
+                    <input type="password" id="settings-openrouter-key" placeholder="sk-or-...">
+                    <small id="openrouter-key-status"></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn-run" onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" style="display:none"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
