@@ -12,7 +12,7 @@ def _load_template(name: str) -> str:
     if name not in _cache:
         path = PROMPTS_DIR / name
         logger.debug(f"Loading prompt template: {path}")
-        _cache[name] = path.read_text()
+        _cache[name] = path.read_text(encoding="utf-8")
     return _cache[name]
 
 

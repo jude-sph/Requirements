@@ -29,7 +29,7 @@ def setup_logging(verbose: bool) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = OUTPUT_LOGS_DIR / f"{timestamp}.log"
 
-    file_handler = logging.FileHandler(log_file)
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(
         "%(asctime)s %(name)s %(levelname)s %(message)s"
@@ -160,7 +160,7 @@ def process_dig(
 
     OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
     json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
-    json_path.write_text(tree.model_dump_json(indent=2))
+    json_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
     pbar.update(1)
     pbar.set_description("Done".ljust(desc_width))
     pbar.close()
@@ -298,7 +298,7 @@ def main():
             return
         trees = []
         for jf in json_files:
-            trees.append(RequirementTree.model_validate_json(jf.read_text()))
+            trees.append(RequirementTree.model_validate_json(jf.read_text(encoding="utf-8")))
         OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
         output_path = OUTPUT_XLSX_DIR / "results.xlsx"
         export_trees_to_xlsx(trees, output_path)
@@ -371,7 +371,7 @@ def main():
             json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
             if json_path.exists() and not args.force:
                 logger.info(f"[{i}/{total}] Skipping DIG {dig_id} (output exists, use --force to reprocess)")
-                trees.append(RequirementTree.model_validate_json(json_path.read_text()))
+                trees.append(RequirementTree.model_validate_json(json_path.read_text(encoding="utf-8")))
                 continue
 
             print(f"\n[{i}/{total}]", end="")

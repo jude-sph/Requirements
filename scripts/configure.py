@@ -72,7 +72,7 @@ def load_env() -> dict:
     """Load current .env values."""
     env = {}
     if ENV_PATH.exists():
-        for line in ENV_PATH.read_text().splitlines():
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, _, value = line.partition("=")
@@ -94,7 +94,7 @@ def save_env(env: dict) -> None:
     if ork:
         lines.append(f"OPENROUTER_API_KEY={ork}")
     lines.append("")
-    ENV_PATH.write_text("\n".join(lines) + "\n")
+    ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def show_current(env: dict) -> None:
