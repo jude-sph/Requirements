@@ -166,21 +166,59 @@ def process_dig(
     return tree
 
 
+HELP_TEXT = """
+  Requirements Decomposition System
+  ──────────────────────────────────
+  Decomposes high-level shipbuilding Design Instructions and Guidelines (DIGs)
+  into multi-level formal "shall" requirements using LLMs.
+
+  Each DIG is decomposed through up to 4 levels:
+    Level 1: Whole Ship     → Level 2: Major System
+    Level 3: Subsystem      → Level 4: Equipment
+
+  At each level, the system generates:
+    - IEEE 29481 compliant "shall" statement
+    - Chapter allocation (GTR/SDS)
+    - System hierarchy mapping
+    - Verification & Validation data (5-phase acceptance)
+
+  After generation, a semantic judge reviews the tree and a refinement
+  step corrects any flagged issues. Final guidance is saved with results.
+
+  Quick Start:
+    reqdecomp --setup                          Configure model and API keys
+    reqdecomp --dig 9584                       Process one DIG
+    reqdecomp --dig 9584 --max-depth 2         Cheaper: only 2 levels
+    reqdecomp --all --skip-judge               Process all DIGs, no judge
+    reqdecomp --dry-run --all                  Estimate cost before running
+    reqdecomp --export-only                    Export JSON results to xlsx
+
+  Output:
+    output/json/     Per-DIG JSON trees (source of truth)
+    output/xlsx/     Exported spreadsheet
+    output/logs/     Detailed run logs
+"""
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Decompose shipbuilding DIGs into formal requirements")
+    parser = argparse.ArgumentParser(
+        prog="reqdecomp",
+        description=HELP_TEXT,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--dig", type=str, help="Process a single DIG by DNG ID")
     group.add_argument("--all", action="store_true", help="Process all DIGs")
-    group.add_argument("--export-only", action="store_true", help="Export existing JSON to xlsx")
-    group.add_argument("--setup", action="store_true", help="Configure model and API keys")
+    group.add_argument("--export-only", action="store_true", help="Export existing JSON results to xlsx")
+    group.add_argument("--setup", action="store_true", help="Configure model and API keys interactively")
 
-    parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help=f"Max decomposition depth (default: {DEFAULT_MAX_DEPTH})")
+    parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help=f"Max decomposition depth, 1-4 (default: {DEFAULT_MAX_DEPTH})")
     parser.add_argument("--max-breadth", type=int, default=DEFAULT_MAX_BREADTH, help=f"Max children per node (default: {DEFAULT_MAX_BREADTH})")
-    parser.add_argument("--skip-vv", action="store_true", help="Skip V&V generation")
-    parser.add_argument("--skip-judge", action="store_true", help="Skip semantic judge")
-    parser.add_argument("--verbose", action="store_true", help="Enable DEBUG logging to console")
-    parser.add_argument("--dry-run", action="store_true", help="Estimate API calls without executing")
-    parser.add_argument("--force", action="store_true", help="Reprocess DIGs with existing output")
+    parser.add_argument("--skip-vv", action="store_true", help="Skip V&V generation (faster, cheaper)")
+    parser.add_argument("--skip-judge", action="store_true", help="Skip semantic judge and refinement")
+    parser.add_argument("--verbose", action="store_true", help="Show detailed debug output")
+    parser.add_argument("--dry-run", action="store_true", help="Estimate API calls and cost without running")
+    parser.add_argument("--force", action="store_true", help="Reprocess DIGs that already have output")
     parser.add_argument("--input", type=str, default=None, help="Path to input xlsx (default: GTR-SDS.xlsx)")
 
     args = parser.parse_args()

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reqdecomp"
+version = "0.1.0"
+description = "Decompose high-level shipbuilding requirements (DIGs) into multi-level formal 'shall' statements using LLMs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Jude", email = "jude@example.com"},
+]
+dependencies = [
+    "anthropic>=0.40.0",
+    "openai>=1.0.0",
+    "openpyxl>=3.1.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+reqdecomp = "src.main:main"
+reqdecomp-setup = "scripts.configure:main"
+
+[project.urls]
+Repository = "https://github.com/jude-sph/Requirements"
+
+[tool.setuptools.packages.find]
+include = ["src*", "scripts*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
