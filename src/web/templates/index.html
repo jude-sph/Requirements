@@ -76,7 +76,9 @@
                 </div>
                 <div class="checkbox-row">
                     <label><input type="checkbox" id="vv" checked> V&V</label>
+                    <span class="info-tip" onclick="showInfoTip(this, 'Verification &amp; Validation: Generates acceptance criteria, verification methods (Test, Inspection, Analysis, etc.), verification events (Design Review, FAT, HAT, Sea Trials, etc.), and test case descriptions for each requirement. Adds ~1 API call per requirement node.')">&#x24D8;</span>
                     <label><input type="checkbox" id="judge" checked> Judge</label>
+                    <span class="info-tip" onclick="showInfoTip(this, 'Semantic Judge: An independent LLM review of the full requirement tree. Checks parent-child coherence, correct allocations, appropriate specificity, and V&amp;V quality. If issues are found, the tree is automatically refined and re-judged. Adds 2-3 API calls per DIG.')">&#x24D8;</span>
                 </div>
             </div>
         </div>

@@ -40,6 +40,24 @@ async function handleUpload(input) {
     }
 }
 
+// Info tips
+function showInfoTip(elem, text) {
+    // Remove any existing tip
+    var existing = document.querySelector('.info-tip-bubble');
+    if (existing) { existing.remove(); return; }
+    var bubble = el('div', { className: 'info-tip-bubble', textContent: text });
+    elem.appendChild(bubble);
+    // Close on click outside
+    setTimeout(function() {
+        document.addEventListener('click', function handler(e) {
+            if (!elem.contains(e.target)) {
+                bubble.remove();
+                document.removeEventListener('click', handler);
+            }
+        });
+    }, 10);
+}
+
 // DIG picker
 var allDigs = [];
 var selectedDigs = [];
