@@ -4,6 +4,7 @@ import json
 import logging
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -231,6 +232,9 @@ HELP_TEXT = """
     reqdecomp --dig 9584 --skip-vv             Skip V&V generation (faster)
     reqdecomp --dig 9584 --skip-judge          Skip judge + refinement (faster)
 
+  Performance:
+    reqdecomp --all --workers 8                Process 8 DIGs in parallel (default: 4)
+
   Input:
     Place GTR-SDS.xlsx in the current directory, or use --input /path/to/file.xlsx
 
@@ -255,6 +259,7 @@ def main():
     group.add_argument("--web", action="store_true", help="Launch web interface in browser")
 
     parser.add_argument("--port", type=int, default=8000, help="Port for web interface (default: 8000)")
+    parser.add_argument("--workers", type=int, default=4, help="Parallel workers for batch processing (default: 4)")
     parser.add_argument("--max-depth", type=int, default=DEFAULT_MAX_DEPTH, help=f"Max decomposition depth, 1-4 (default: {DEFAULT_MAX_DEPTH})")
     parser.add_argument("--max-breadth", type=int, default=DEFAULT_MAX_BREADTH, help=f"Max children per node (default: {DEFAULT_MAX_BREADTH})")
     parser.add_argument("--skip-vv", action="store_true", help="Skip V&V generation (faster, cheaper)")
@@ -348,51 +353,116 @@ def main():
         print(f"Dry run: {n} DIGs, max {calls_per_dig} API calls/DIG, max {n * calls_per_dig} total calls")
         return
 
-    # Single or multi-DIG mode
-    if dig_ids:
+    # Single DIG mode (detailed progress)
+    if dig_ids and len(dig_ids) == 1:
         cost_tracker = CostTracker(model=MODEL)
-        trees = []
-        for i, dig_id in enumerate(dig_ids, 1):
-            if len(dig_ids) > 1:
-                print(f"\n[{i}/{len(dig_ids)}]", end="")
-            dig = ref_data.digs[dig_id]
-            tree = process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, cost_tracker)
-            trees.append(tree)
-
-        # Auto-export to xlsx
+        dig = ref_data.digs[dig_ids[0]]
+        tree = process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, cost_tracker)
         OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
-        output_path = OUTPUT_XLSX_DIR / "results.xlsx"
-        export_trees_to_xlsx(trees, output_path)
-        total_reqs = sum(t.count_nodes() for t in trees)
-        print(f"\nExported {len(trees)} DIG(s) ({total_reqs} requirements) to:")
-        print(f"  {output_path}")
+        export_trees_to_xlsx([tree], OUTPUT_XLSX_DIR / "results.xlsx")
+        print(f"\nExported 1 DIG(s) ({tree.count_nodes()} requirements) to:")
+        print(f"  {OUTPUT_XLSX_DIR / 'results.xlsx'}")
         return
 
-    # Batch mode
-    if args.all:
+    # Multi-DIG or batch mode (parallel processing)
+    if dig_ids or args.all:
         start_time = time.time()
-        batch_tracker = CostTracker(model=MODEL)
-        trees = []
-        total = len(ref_data.digs)
+        workers = args.workers
 
-        for i, (dig_id, dig) in enumerate(ref_data.digs.items(), 1):
-            # Skip if output exists (unless --force)
+        # Build list of DIGs to process
+        if args.all:
+            all_dig_ids = list(ref_data.digs.keys())
+        else:
+            all_dig_ids = dig_ids
+
+        # Separate: already done vs need processing
+        to_process = []
+        pre_loaded = {}
+        for dig_id in all_dig_ids:
             json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
             if json_path.exists() and not args.force:
-                logger.info(f"[{i}/{total}] Skipping DIG {dig_id} (output exists, use --force to reprocess)")
-                trees.append(RequirementTree.model_validate_json(json_path.read_text(encoding="utf-8")))
-                continue
+                pre_loaded[dig_id] = RequirementTree.model_validate_json(json_path.read_text(encoding="utf-8"))
+            else:
+                to_process.append(dig_id)
 
-            print(f"\n[{i}/{total}]", end="")
-            dig_tracker = CostTracker(model=MODEL)
-            tree = process_dig(dig["dig_id"], dig["dig_text"], ref_data, args, dig_tracker)
-            trees.append(tree)
+        if pre_loaded:
+            print(f"Skipping {len(pre_loaded)} DIGs with existing output (use --force to reprocess)")
 
-            # Merge dig costs into batch tracker
-            for entry in dig_tracker.get_summary().breakdown:
-                batch_tracker.record(entry.call_type, entry.level, entry.input_tokens, entry.output_tokens)
+        total = len(to_process)
+        if total == 0:
+            print("All DIGs already processed.")
+            trees = [pre_loaded[d] for d in all_dig_ids if d in pre_loaded]
+        else:
+            print(f"Processing {total} DIGs with {min(workers, total)} parallel workers...\n")
+            from tqdm import tqdm
+            batch_tracker = CostTracker(model=MODEL)
+            completed_trees = {}
 
-        # Export all to xlsx
+            def _process_one(dig_id):
+                """Process a single DIG (runs in thread pool)."""
+                dig = ref_data.digs[dig_id]
+                tracker = CostTracker(model=MODEL)
+
+                tree = decompose_dig(
+                    dig_id=dig_id, dig_text=dig["dig_text"], ref_data=ref_data,
+                    max_depth=args.max_depth, max_breadth=args.max_breadth,
+                    skip_vv=args.skip_vv, cost_tracker=tracker,
+                )
+                if not tree.root:
+                    return dig_id, tree, tracker
+
+                if not args.skip_vv:
+                    apply_vv_to_tree(tree, ref_data, tracker)
+
+                structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
+
+                semantic_review = None
+                if not args.skip_judge:
+                    semantic_review = run_semantic_judge(tree, tracker)
+                    if semantic_review.status != "pass":
+                        tree = refine_tree(tree, semantic_review, ref_data, tracker)
+                        structural_errors = validate_tree_structure(tree, ref_data, args.max_depth, args.max_breadth)
+                        semantic_review = run_semantic_judge(tree, tracker)
+
+                tree.validation = ValidationResult(structural_errors=structural_errors, semantic_review=semantic_review)
+                tree.cost = tracker.get_summary()
+
+                OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
+                json_path = OUTPUT_JSON_DIR / f"{dig_id}.json"
+                json_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
+
+                return dig_id, tree, tracker
+
+            pbar = tqdm(total=total, bar_format="  {l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]")
+
+            with ThreadPoolExecutor(max_workers=min(workers, total)) as executor:
+                futures = {executor.submit(_process_one, did): did for did in to_process}
+                for future in as_completed(futures):
+                    try:
+                        dig_id, tree, tracker = future.result()
+                        completed_trees[dig_id] = tree
+                        summary = tracker.get_summary()
+                        for entry in summary.breakdown:
+                            batch_tracker.record(entry.call_type, entry.level, entry.input_tokens, entry.output_tokens)
+                        nodes = tree.count_nodes()
+                        pbar.set_description(f"DIG {dig_id}: {nodes} nodes, ${summary.total_cost_usd:.4f}")
+                        pbar.update(1)
+                    except Exception as e:
+                        pbar.set_description(f"DIG {futures[future]}: ERROR")
+                        pbar.update(1)
+                        logger.error(f"DIG {futures[future]} failed: {e}")
+
+            pbar.close()
+
+            # Merge results in original order
+            trees = []
+            for dig_id in all_dig_ids:
+                if dig_id in pre_loaded:
+                    trees.append(pre_loaded[dig_id])
+                elif dig_id in completed_trees:
+                    trees.append(completed_trees[dig_id])
+
+        # Export
         OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
         output_path = OUTPUT_XLSX_DIR / "results.xlsx"
         export_trees_to_xlsx(trees, output_path)
@@ -400,21 +470,24 @@ def main():
         elapsed = time.time() - start_time
         minutes = int(elapsed // 60)
         seconds = int(elapsed % 60)
-        summary = batch_tracker.get_summary()
-        total_nodes = sum(t.count_nodes() for t in trees)
 
-        print(f"\n{'=' * 40}")
-        print(f"Batch Complete")
-        print(f"{'=' * 40}")
-        print(f"DIGs processed: {total}")
-        print(f"Total requirements: {total_nodes}")
-        print(f"Total API calls: {summary.api_calls}")
-        print(f"Total tokens: {summary.total_input_tokens:,} input / {summary.total_output_tokens:,} output")
-        print(f"Total cost: ${summary.total_cost_usd:.2f}")
-        print(f"Time elapsed: {minutes}m {seconds}s")
-        print(f"\nOutput:")
-        print(f"  JSON:  {OUTPUT_JSON_DIR} ({total} files)")
-        print(f"  XLSX:  {output_path}")
+        if total > 0:
+            summary = batch_tracker.get_summary()
+            total_nodes = sum(t.count_nodes() for t in trees)
+            print(f"\n{'=' * 40}")
+            print(f"Batch Complete")
+            print(f"{'=' * 40}")
+            print(f"DIGs processed: {len(trees)} ({total} new, {len(pre_loaded)} cached)")
+            print(f"Total requirements: {total_nodes}")
+            print(f"Total API calls: {summary.api_calls}")
+            print(f"Total tokens: {summary.total_input_tokens:,} input / {summary.total_output_tokens:,} output")
+            print(f"Total cost: ${summary.total_cost_usd:.2f}")
+            print(f"Time elapsed: {minutes}m {seconds}s")
+            print(f"Workers: {min(workers, total)}")
+            print(f"\nOutput:")
+            print(f"  JSON:  {OUTPUT_JSON_DIR} ({len(trees)} files)")
+            print(f"  XLSX:  {output_path}")
+            print(f"  Logs:  {OUTPUT_LOGS_DIR}")
         print(f"  Logs:  {OUTPUT_LOGS_DIR}")
 
 

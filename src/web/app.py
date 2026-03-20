@@ -152,115 +152,111 @@ async def run(request: Request):
     return {"job_id": job.id}
 
 
+MAX_WORKERS = 4
+
+
 async def _run_job_async(job: Job):
-    """Wrapper to run the blocking pipeline in a thread."""
+    """Run DIGs in parallel using thread pool."""
     try:
-        await asyncio.to_thread(_run_job, job)
+        settings = job.settings
+        total = len(job.dig_ids)
+        job.emit({"type": "started", "total_digs": total, "job_id": job.id})
+
+        workers = min(MAX_WORKERS, total)
+        completed = 0
+        total_cost = 0.0
+        total_api_calls = 0
+        total_nodes = 0
+        lock = asyncio.Lock()
+
+        async def _process_one(dig_id, idx):
+            nonlocal completed, total_cost, total_api_calls, total_nodes
+            if job.cancelled:
+                return
+
+            dig = ref_data.digs[dig_id]
+            job.emit({"type": "dig_started", "dig_id": dig_id, "index": idx, "total": total,
+                      "dig_text": dig["dig_text"][:80]})
+
+            def _do_work():
+                cost_tracker = CostTracker(model=config.MODEL)
+                job.emit({"type": "phase", "dig_id": dig_id, "phase": "decompose", "detail": "Building requirement tree"})
+                tree = decompose_dig(
+                    dig_id=dig_id, dig_text=dig["dig_text"], ref_data=ref_data,
+                    max_depth=settings["max_depth"], max_breadth=settings["max_breadth"],
+                    skip_vv=settings["skip_vv"], cost_tracker=cost_tracker,
+                )
+                if not tree.root:
+                    job.emit({"type": "error", "dig_id": dig_id, "message": "No requirements generated"})
+                    return None, cost_tracker
+
+                nodes = tree.count_nodes()
+                job.emit({"type": "phase", "dig_id": dig_id, "phase": "decompose_done", "detail": f"{nodes} requirements"})
+
+                if not settings["skip_vv"]:
+                    job.emit({"type": "phase", "dig_id": dig_id, "phase": "vv", "detail": f"Generating V&V for {nodes} requirements"})
+                    apply_vv_to_tree(tree, ref_data, cost_tracker)
+
+                structural_errors = validate_tree_structure(tree, ref_data, settings["max_depth"], settings["max_breadth"])
+
+                semantic_review = None
+                if not settings["skip_judge"]:
+                    job.emit({"type": "phase", "dig_id": dig_id, "phase": "judge", "detail": "Reviewing tree"})
+                    semantic_review = run_semantic_judge(tree, cost_tracker)
+                    if semantic_review.status != "pass":
+                        job.emit({"type": "phase", "dig_id": dig_id, "phase": "refine", "detail": f"{len(semantic_review.issues)} issues"})
+                        tree = refine_tree(tree, semantic_review, ref_data, cost_tracker)
+                        structural_errors = validate_tree_structure(tree, ref_data, settings["max_depth"], settings["max_breadth"])
+                        semantic_review = run_semantic_judge(tree, cost_tracker)
+
+                tree.validation = ValidationResult(structural_errors=structural_errors, semantic_review=semantic_review)
+                tree.cost = cost_tracker.get_summary()
+
+                config.OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
+                json_path = config.OUTPUT_JSON_DIR / f"{dig_id}.json"
+                json_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
+                return tree, cost_tracker
+
+            try:
+                tree, cost_tracker = await asyncio.to_thread(_do_work)
+                if tree:
+                    summary = cost_tracker.get_summary()
+                    async with lock:
+                        completed += 1
+                        total_cost += summary.total_cost_usd
+                        total_api_calls += summary.api_calls
+                        total_nodes += tree.count_nodes()
+                    job.emit({"type": "dig_complete", "dig_id": dig_id, "nodes": tree.count_nodes(),
+                              "levels": tree.max_depth(), "cost": round(summary.total_cost_usd, 4)})
+                    job.emit({"type": "cost", "total_cost": round(total_cost, 4), "api_calls": total_api_calls})
+            except Exception as e:
+                logger.error(f"Error processing DIG {dig_id}: {e}")
+                job.emit({"type": "error", "dig_id": dig_id, "message": str(e)})
+
+        # Process in batches of `workers` concurrent tasks
+        for batch_start in range(0, total, workers):
+            if job.cancelled:
+                break
+            batch = list(enumerate(job.dig_ids[batch_start:batch_start + workers], start=batch_start + 1))
+            tasks = [_process_one(dig_id, idx) for idx, dig_id in batch]
+            await asyncio.gather(*tasks)
+
+        # Export xlsx
+        try:
+            config.OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
+            json_files = sorted(config.OUTPUT_JSON_DIR.glob("*.json"))
+            trees = [RequirementTree.model_validate_json(f.read_text(encoding="utf-8")) for f in json_files]
+            export_trees_to_xlsx(trees, config.OUTPUT_XLSX_DIR / "results.xlsx")
+        except Exception as e:
+            logger.error(f"Export failed: {e}")
+
+        job.status = "cancelled" if job.cancelled else "complete"
+        job.emit({"type": "complete", "total_digs": total, "total_nodes": total_nodes,
+                  "total_cost": round(total_cost, 4)})
+
     except Exception as e:
         job.status = "error"
         job.emit({"type": "error", "message": str(e)})
-
-
-def _run_job(job: Job):
-    """Run the decomposition pipeline (blocking, runs in thread)."""
-    settings = job.settings
-    total = len(job.dig_ids)
-    job.emit({"type": "started", "total_digs": total, "job_id": job.id})
-
-    total_cost = 0.0
-    total_api_calls = 0
-    total_nodes = 0
-
-    for idx, dig_id in enumerate(job.dig_ids, 1):
-        if job.cancelled:
-            job.status = "cancelled"
-            job.emit({"type": "cancelled"})
-            return
-
-        dig = ref_data.digs[dig_id]
-        job.emit({"type": "dig_started", "dig_id": dig_id, "index": idx, "total": total,
-                  "dig_text": dig["dig_text"][:80]})
-
-        cost_tracker = CostTracker(model=config.MODEL)
-
-        try:
-            # Decompose
-            job.emit({"type": "phase", "dig_id": dig_id, "phase": "decompose", "detail": "Building requirement tree"})
-            tree = decompose_dig(
-                dig_id=dig_id, dig_text=dig["dig_text"], ref_data=ref_data,
-                max_depth=settings["max_depth"], max_breadth=settings["max_breadth"],
-                skip_vv=settings["skip_vv"], cost_tracker=cost_tracker,
-            )
-
-            if not tree.root:
-                job.emit({"type": "error", "dig_id": dig_id, "message": "No requirements generated"})
-                continue
-
-            nodes = tree.count_nodes()
-            job.emit({"type": "phase", "dig_id": dig_id, "phase": "decompose_done",
-                      "detail": f"{nodes} requirements"})
-
-            # V&V
-            if not settings["skip_vv"]:
-                job.emit({"type": "phase", "dig_id": dig_id, "phase": "vv",
-                          "detail": f"Generating V&V for {nodes} requirements"})
-                apply_vv_to_tree(tree, ref_data, cost_tracker)
-
-            # Structural validation
-            structural_errors = validate_tree_structure(
-                tree, ref_data, settings["max_depth"], settings["max_breadth"])
-
-            # Semantic judge + refinement
-            semantic_review = None
-            if not settings["skip_judge"]:
-                job.emit({"type": "phase", "dig_id": dig_id, "phase": "judge", "detail": "Reviewing tree"})
-                semantic_review = run_semantic_judge(tree, cost_tracker)
-
-                if semantic_review.status != "pass":
-                    job.emit({"type": "phase", "dig_id": dig_id, "phase": "refine",
-                              "detail": f"{len(semantic_review.issues)} issues"})
-                    tree = refine_tree(tree, semantic_review, ref_data, cost_tracker)
-                    structural_errors = validate_tree_structure(
-                        tree, ref_data, settings["max_depth"], settings["max_breadth"])
-                    semantic_review = run_semantic_judge(tree, cost_tracker)
-
-            tree.validation = ValidationResult(
-                structural_errors=structural_errors,
-                semantic_review=semantic_review,
-            )
-            tree.cost = cost_tracker.get_summary()
-
-            # Save JSON
-            config.OUTPUT_JSON_DIR.mkdir(parents=True, exist_ok=True)
-            json_path = config.OUTPUT_JSON_DIR / f"{dig_id}.json"
-            json_path.write_text(tree.model_dump_json(indent=2), encoding="utf-8")
-
-            summary = cost_tracker.get_summary()
-            dig_cost = summary.total_cost_usd
-            total_cost += dig_cost
-            total_api_calls += summary.api_calls
-            total_nodes += tree.count_nodes()
-
-            job.emit({"type": "dig_complete", "dig_id": dig_id, "nodes": tree.count_nodes(),
-                      "levels": tree.max_depth(), "cost": round(dig_cost, 4)})
-            job.emit({"type": "cost", "total_cost": round(total_cost, 4), "api_calls": total_api_calls})
-
-        except Exception as e:
-            logger.error(f"Error processing DIG {dig_id}: {e}")
-            job.emit({"type": "error", "dig_id": dig_id, "message": str(e)})
-
-    # Export xlsx
-    try:
-        config.OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)
-        json_files = sorted(config.OUTPUT_JSON_DIR.glob("*.json"))
-        trees = [RequirementTree.model_validate_json(f.read_text(encoding="utf-8")) for f in json_files]
-        export_trees_to_xlsx(trees, config.OUTPUT_XLSX_DIR / "results.xlsx")
-    except Exception as e:
-        logger.error(f"Export failed: {e}")
-
-    job.status = "complete"
-    job.emit({"type": "complete", "total_digs": total, "total_nodes": total_nodes,
-              "total_cost": round(total_cost, 4)})
 
 
 @app.get("/stream/{job_id}")
