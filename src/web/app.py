@@ -123,7 +123,7 @@ async def run(request: Request):
     dig_input = body.get("dig_ids", "").strip()
     settings = {
         "max_depth": min(int(body.get("max_depth", 4)), 4),
-        "max_breadth": min(int(body.get("max_breadth", 3)), 5),
+        "max_breadth": min(int(body.get("max_breadth", 3)), 25),
         "skip_vv": body.get("skip_vv", False),
         "skip_judge": body.get("skip_judge", False),
     }
@@ -379,7 +379,7 @@ async def dry_run(request: Request):
     body = await request.json()
     dig_input = body.get("dig_ids", "").strip()
     max_depth = min(int(body.get("max_depth", 4)), 4)
-    max_breadth = min(int(body.get("max_breadth", 3)), 5)
+    max_breadth = min(int(body.get("max_breadth", 3)), 25)
     skip_vv = body.get("skip_vv", False)
     skip_judge = body.get("skip_judge", False)
 
