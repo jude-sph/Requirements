@@ -435,9 +435,11 @@ def main():
 
             pbar = tqdm(total=total, bar_format="  {l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]")
 
+            failed_digs = []
             with ThreadPoolExecutor(max_workers=min(workers, total)) as executor:
                 futures = {executor.submit(_process_one, did): did for did in to_process}
                 for future in as_completed(futures):
+                    dig_id = futures[future]
                     try:
                         dig_id, tree, tracker = future.result()
                         completed_trees[dig_id] = tree
@@ -448,9 +450,10 @@ def main():
                         pbar.set_description(f"DIG {dig_id}: {nodes} nodes, ${summary.total_cost_usd:.4f}")
                         pbar.update(1)
                     except Exception as e:
-                        pbar.set_description(f"DIG {futures[future]}: ERROR")
+                        failed_digs.append((dig_id, str(e)))
+                        pbar.set_description(f"DIG {dig_id}: FAILED")
                         pbar.update(1)
-                        logger.error(f"DIG {futures[future]} failed: {e}")
+                        logger.error(f"DIG {dig_id} failed: {e}")
 
             pbar.close()
 
@@ -478,17 +481,23 @@ def main():
             print(f"Batch Complete")
             print(f"{'=' * 40}")
             print(f"DIGs processed: {len(trees)} ({total} new, {len(pre_loaded)} cached)")
+            if failed_digs:
+                print(f"DIGs failed: {len(failed_digs)}")
             print(f"Total requirements: {total_nodes}")
             print(f"Total API calls: {summary.api_calls}")
             print(f"Total tokens: {summary.total_input_tokens:,} input / {summary.total_output_tokens:,} output")
             print(f"Total cost: ${summary.total_cost_usd:.2f}")
             print(f"Time elapsed: {minutes}m {seconds}s")
             print(f"Workers: {min(workers, total)}")
+            if failed_digs:
+                print(f"\nFailed DIGs:")
+                for fid, err in failed_digs:
+                    print(f"  DIG {fid}: {err[:100]}")
+                print(f"\nRe-run failed DIGs with: reqdecomp --dig {','.join(d for d,_ in failed_digs)}")
             print(f"\nOutput:")
             print(f"  JSON:  {OUTPUT_JSON_DIR} ({len(trees)} files)")
             print(f"  XLSX:  {output_path}")
             print(f"  Logs:  {OUTPUT_LOGS_DIR}")
-        print(f"  Logs:  {OUTPUT_LOGS_DIR}")
 
 
 if __name__ == "__main__":

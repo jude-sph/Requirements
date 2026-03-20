@@ -9,30 +9,39 @@ from src.cost_tracker import CostTracker
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
-RETRY_DELAYS = [1, 2, 4]
+RETRY_DELAYS = [2, 5, 10]
 
 
 def _create_client():
     """Create the appropriate API client based on PROVIDER config."""
     if PROVIDER == "openrouter":
+        if not OPENROUTER_API_KEY:
+            raise RuntimeError(
+                "OpenRouter API key not set. Run 'reqdecomp --setup' or set OPENROUTER_API_KEY in your .env"
+            )
         import openai
         return openai.OpenAI(
             api_key=OPENROUTER_API_KEY,
             base_url="https://openrouter.ai/api/v1",
+            timeout=120.0,
         )
     else:
+        if not ANTHROPIC_API_KEY:
+            raise RuntimeError(
+                "Anthropic API key not set. Run 'reqdecomp --setup' or set ANTHROPIC_API_KEY in your .env"
+            )
         import anthropic
-        return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, timeout=120.0)
 
 
 def _get_retry_exceptions():
     """Get the retryable exception types for the current provider."""
     if PROVIDER == "openrouter":
         import openai
-        return (openai.APIError, openai.APIConnectionError, openai.RateLimitError)
+        return (openai.APIError, openai.APIConnectionError, openai.RateLimitError, TimeoutError)
     else:
         import anthropic
-        return (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError)
+        return (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError, TimeoutError)
 
 
 def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int, int, float | None]:
