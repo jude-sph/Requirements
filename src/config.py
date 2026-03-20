@@ -44,6 +44,9 @@ MODEL_PRICING = {
     "openai/gpt-4o-mini": {"input_per_mtok": 0.15, "output_per_mtok": 0.60},
     "openai/gpt-4o": {"input_per_mtok": 2.50, "output_per_mtok": 10.00},
     "meta-llama/llama-4-maverick": {"input_per_mtok": 0.20, "output_per_mtok": 0.60},
+    "qwen/qwen3-235b-a22b": {"input_per_mtok": 0.20, "output_per_mtok": 0.60},
+    "qwen/qwen3-32b": {"input_per_mtok": 0.10, "output_per_mtok": 0.30},
+    "qwen/qwen3-30b-a3b": {"input_per_mtok": 0.05, "output_per_mtok": 0.15},
 }
 
 # Model catalogue with descriptions for UI
@@ -135,6 +138,30 @@ MODEL_CATALOGUE = [
         "description": "Open-source model, very cheap. Good for experimentation and bulk runs where cost is the priority.",
         "pros": ["Very cheap", "Open source", "Fast"],
         "cons": ["Less tested for this domain", "May need prompt tuning"],
+    },
+    {
+        "id": "qwen/qwen3-235b-a22b", "name": "Qwen 3 235B (MoE)", "provider": "openrouter",
+        "price": "$0.20 / $0.60 per Mtok", "cost_per_dig": "~$0.01-0.04",
+        "quality": "very good", "speed": "medium",
+        "description": "Massive 235B mixture-of-experts model at a very low price. Strong reasoning and structured output. One of the best quality-per-dollar options available.",
+        "pros": ["Excellent quality for the price", "Strong reasoning (235B MoE)", "Good structured output", "Very cheap"],
+        "cons": ["Newer model, less battle-tested", "Slightly slower than smaller variants"],
+    },
+    {
+        "id": "qwen/qwen3-32b", "name": "Qwen 3 32B", "provider": "openrouter",
+        "price": "$0.10 / $0.30 per Mtok", "cost_per_dig": "~$0.01-0.02",
+        "quality": "good", "speed": "fast",
+        "description": "Dense 32B model. Extremely cheap with solid quality. Great for bulk processing where you want a balance of speed, quality, and cost.",
+        "pros": ["Extremely cheap", "Fast", "Good quality for size", "Reliable structured output"],
+        "cons": ["Smaller model, less nuanced reasoning", "May produce simpler rationales"],
+    },
+    {
+        "id": "qwen/qwen3-30b-a3b", "name": "Qwen 3 30B (MoE, 3B active)", "provider": "openrouter",
+        "price": "$0.05 / $0.15 per Mtok", "cost_per_dig": "~$0.005-0.01",
+        "quality": "fair", "speed": "very fast",
+        "description": "Ultra-cheap MoE model with only 3B active parameters. The cheapest option in the catalogue. Good for rapid prototyping and testing prompt changes.",
+        "pros": ["Cheapest model available", "Extremely fast", "Good for testing"],
+        "cons": ["Smallest active parameters", "May struggle with complex decomposition", "Simpler V&V output"],
     },
 ]
 
