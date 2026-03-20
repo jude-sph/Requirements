@@ -667,7 +667,13 @@ async function checkForUpdates() {
     try {
         var res = await fetch('/check-updates');
         var data = await res.json();
-        if (data.available) {
+        if (data.error) {
+            status.textContent = data.error;
+            status.style.color = '#c88';
+            btn.textContent = 'Check for Updates';
+            btn.disabled = false;
+            btn.onclick = checkForUpdates;
+        } else if (data.available) {
             status.textContent = data.behind + ' update(s) available';
             status.style.color = '#7c7cff';
             btn.textContent = 'Install Update';
@@ -681,7 +687,7 @@ async function checkForUpdates() {
             btn.onclick = checkForUpdates;
         }
     } catch (e) {
-        status.textContent = 'Could not check';
+        status.textContent = 'Could not check for updates';
         status.style.color = '#c66';
         btn.textContent = 'Check for Updates';
         btn.disabled = false;

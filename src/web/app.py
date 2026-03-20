@@ -460,22 +460,47 @@ async def update_software():
 async def check_updates():
     """Check if there are remote updates available."""
     import subprocess
+    pkg_root = str(config.PACKAGE_ROOT)
     try:
-        # Fetch remote without merging
-        subprocess.run(
-            ["git", "fetch", "--quiet"], capture_output=True, text=True,
-            cwd=str(config.PACKAGE_ROOT), timeout=15,
+        # Check git is available
+        git_check = subprocess.run(["git", "--version"], capture_output=True, text=True)
+        if git_check.returncode != 0:
+            return {"behind": 0, "available": False, "error": "Git is not installed"}
+
+        # Check this is a git repo
+        is_repo = subprocess.run(
+            ["git", "rev-parse", "--git-dir"], capture_output=True, text=True, cwd=pkg_root,
         )
+        if is_repo.returncode != 0:
+            return {"behind": 0, "available": False, "error": "Not a git repository. Was the project installed from a zip? Clone from GitHub to enable updates."}
+
+        # Check remote exists
+        remote = subprocess.run(
+            ["git", "remote"], capture_output=True, text=True, cwd=pkg_root,
+        )
+        if not remote.stdout.strip():
+            return {"behind": 0, "available": False, "error": "No git remote configured. Run: git remote add origin https://github.com/jude-sph/Requirements.git"}
+
+        # Fetch remote
+        fetch = subprocess.run(
+            ["git", "fetch", "--quiet"], capture_output=True, text=True,
+            cwd=pkg_root, timeout=15,
+        )
+        if fetch.returncode != 0:
+            return {"behind": 0, "available": False, "error": "Could not reach GitHub. Check your network connection."}
+
         # Compare local vs remote
         result = subprocess.run(
             ["git", "rev-list", "HEAD..@{u}", "--count"],
-            capture_output=True, text=True,
-            cwd=str(config.PACKAGE_ROOT), timeout=10,
+            capture_output=True, text=True, cwd=pkg_root, timeout=10,
         )
-        behind = int(result.stdout.strip()) if result.returncode == 0 else 0
+        if result.returncode != 0:
+            return {"behind": 0, "available": False, "error": "No upstream branch set. Run: git branch --set-upstream-to=origin/main main"}
+
+        behind = int(result.stdout.strip())
         return {"behind": behind, "available": behind > 0}
-    except Exception:
-        return {"behind": 0, "available": False}
+    except Exception as e:
+        return {"behind": 0, "available": False, "error": str(e)}
 
 
 def start_server(port: int = 8000):
