@@ -7,65 +7,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
 
-# Curated model options grouped by provider
-MODELS = [
-    {
-        "id": "claude-sonnet-4-6",
-        "name": "Claude Sonnet 4.6",
-        "provider": "anthropic",
-        "price": "$3 / $15 per Mtok",
-        "description": "Best quality for this task. Recommended.",
-        "cost_per_dig": "~$0.20-0.40",
-    },
-    {
-        "id": "claude-haiku-4-5",
-        "name": "Claude Haiku 4.5",
-        "provider": "anthropic",
-        "price": "$0.80 / $4 per Mtok",
-        "description": "Fast and cheap. Good for iteration and testing.",
-        "cost_per_dig": "~$0.05-0.10",
-    },
-    {
-        "id": "anthropic/claude-sonnet-4",
-        "name": "Claude Sonnet 4 (via OpenRouter)",
-        "provider": "openrouter",
-        "price": "$3 / $15 per Mtok",
-        "description": "Same as direct Anthropic, routed through OpenRouter.",
-        "cost_per_dig": "~$0.20-0.40",
-    },
-    {
-        "id": "anthropic/claude-haiku-4",
-        "name": "Claude Haiku 4 (via OpenRouter)",
-        "provider": "openrouter",
-        "price": "$0.80 / $4 per Mtok",
-        "description": "Fast and cheap via OpenRouter.",
-        "cost_per_dig": "~$0.05-0.10",
-    },
-    {
-        "id": "google/gemini-2.5-flash",
-        "name": "Gemini 2.5 Flash (via OpenRouter)",
-        "provider": "openrouter",
-        "price": "$0.15 / $0.60 per Mtok",
-        "description": "Very cheap. Good structured output. Great for bulk runs.",
-        "cost_per_dig": "~$0.01-0.03",
-    },
-    {
-        "id": "deepseek/deepseek-chat-v3-0324",
-        "name": "DeepSeek V3 (via OpenRouter)",
-        "provider": "openrouter",
-        "price": "$0.27 / $1.10 per Mtok",
-        "description": "Very cheap. Strong reasoning. Good budget option.",
-        "cost_per_dig": "~$0.02-0.05",
-    },
-    {
-        "id": "openai/gpt-4o-mini",
-        "name": "GPT-4o Mini (via OpenRouter)",
-        "provider": "openrouter",
-        "price": "$0.15 / $0.60 per Mtok",
-        "description": "Cheapest option. May produce lower quality decompositions.",
-        "cost_per_dig": "~$0.01-0.03",
-    },
-]
+# Import model catalogue from config (single source of truth)
+sys.path.insert(0, str(PROJECT_ROOT))
+from src.config import MODEL_CATALOGUE
+MODELS = MODEL_CATALOGUE
 
 
 def load_env() -> dict:
@@ -115,19 +60,19 @@ def show_current(env: dict) -> None:
 def pick_model(env: dict) -> dict:
     """Interactive model picker."""
     print("\n  Available Models:\n")
-    print(f"  {'#':<4} {'Model':<40} {'Est. Cost/DIG':<15} {'Notes'}")
-    print(f"  {'─'*4} {'─'*40} {'─'*15} {'─'*40}")
+    print(f"  {'#':<4} {'Model':<35} {'Quality':<12} {'Cost/DIG':<15} {'Speed'}")
+    print(f"  {'─'*4} {'─'*35} {'─'*12} {'─'*15} {'─'*10}")
 
     for i, m in enumerate(MODELS, 1):
-        tag = ""
-        if m["provider"] == "openrouter":
-            tag = " [OpenRouter]"
-        print(f"  {i:<4} {m['name']:<40} {m['cost_per_dig']:<15} {m['description']}")
+        quality = m.get('quality', 'good')
+        speed = m.get('speed', 'medium')
+        print(f"  {i:<4} {m['name']:<35} {quality:<12} {m['cost_per_dig']:<15} {speed}")
 
     print()
+    total = len(MODELS)
     while True:
-        choice = input("  Pick a model (1-7): ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(MODELS):
+        choice = input(f"  Pick a model (1-{total}): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= total:
             break
         print("  Invalid choice. Try again.")
 

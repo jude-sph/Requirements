@@ -35,8 +35,8 @@ def _get_retry_exceptions():
         return (anthropic.APIError, anthropic.APIConnectionError, anthropic.RateLimitError)
 
 
-def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int, int]:
-    """Make an API request and return (text, input_tokens, output_tokens)."""
+def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int, int, float | None]:
+    """Make an API request and return (text, input_tokens, output_tokens, actual_cost_or_none)."""
     if PROVIDER == "openrouter":
         resp = client.chat.completions.create(
             model=MODEL,
@@ -46,6 +46,18 @@ def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int
         text = resp.choices[0].message.content
         input_tokens = resp.usage.prompt_tokens
         output_tokens = resp.usage.completion_tokens
+        # OpenRouter may include actual cost in usage
+        actual_cost = None
+        if hasattr(resp.usage, 'total_cost'):
+            actual_cost = resp.usage.total_cost
+        elif hasattr(resp, '_raw_response'):
+            # Check headers for x-openrouter-cost
+            try:
+                headers = resp._raw_response.headers
+                if 'x-openrouter-cost' in headers:
+                    actual_cost = float(headers['x-openrouter-cost'])
+            except Exception:
+                pass
     else:
         resp = client.messages.create(
             model=MODEL,
@@ -55,7 +67,8 @@ def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int
         text = resp.content[0].text
         input_tokens = resp.usage.input_tokens
         output_tokens = resp.usage.output_tokens
-    return text, input_tokens, output_tokens
+        actual_cost = None  # Anthropic doesn't return cost
+    return text, input_tokens, output_tokens, actual_cost
 
 
 def _extract_json(text: str) -> str:
@@ -95,7 +108,7 @@ def call_llm(
             logger.debug(f"API call: {call_type} L{level} (attempt {attempt + 1})")
             logger.debug(f"Prompt length: {len(prompt)} chars")
 
-            text, input_tokens, output_tokens = _make_request(client, prompt, max_tokens)
+            text, input_tokens, output_tokens, actual_cost = _make_request(client, prompt, max_tokens)
 
             logger.debug(f"Response length: {len(text)} chars")
             cost_tracker.record(
@@ -103,6 +116,7 @@ def call_llm(
                 level=level,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                actual_cost=actual_cost,
             )
 
             json_text = _extract_json(text)

@@ -118,7 +118,7 @@
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal" style="display:none">
-        <div class="modal-content">
+        <div class="modal-content" style="width: 520px;">
             <div class="modal-header">
                 <h3>Settings</h3>
                 <button class="btn-icon" onclick="closeSettings()">✕</button>
@@ -126,7 +126,8 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>Model</label>
-                    <select id="settings-model" onchange="onModelChange()"></select>
+                    <div id="model-cards" class="model-cards"></div>
+                    <div id="model-info-panel" class="model-info-panel" style="display:none"></div>
                 </div>
                 <div class="form-group">
                     <label>Anthropic API Key</label>

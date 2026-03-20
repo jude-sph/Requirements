@@ -397,21 +397,17 @@ function downloadXlsx() {
 }
 
 // Settings
+var settingsModels = [];
+var selectedModelId = null;
+
 async function openSettings() {
     document.getElementById('settings-modal').style.display = '';
     try {
         var res = await fetch('/settings');
         var data = await res.json();
-        var select = document.getElementById('settings-model');
-        select.textContent = '';
-        data.models.forEach(function(m) {
-            var opt = document.createElement('option');
-            opt.value = m.id;
-            opt.setAttribute('data-provider', m.provider);
-            opt.textContent = m.name + ' (' + m.cost_per_dig + ')';
-            if (m.id === data.model) opt.selected = true;
-            select.appendChild(opt);
-        });
+        settingsModels = data.models;
+        selectedModelId = data.model;
+        renderModelCards(data.models, data.model);
         document.getElementById('anthropic-key-status').textContent = data.has_anthropic_key ? 'Key is set' : 'Not set';
         document.getElementById('openrouter-key-status').textContent = data.has_openrouter_key ? 'Key is set' : 'Not set';
     } catch (e) {
@@ -419,16 +415,92 @@ async function openSettings() {
     }
 }
 
+function renderModelCards(models, currentModel) {
+    var container = document.getElementById('model-cards');
+    container.textContent = '';
+    models.forEach(function(m) {
+        var qualityClass = 'quality-' + (m.quality || 'good').replace(' ', '-');
+        var card = el('div', {
+            className: 'model-card' + (m.id === currentModel ? ' selected' : ''),
+            'data-model-id': m.id,
+        });
+        card.addEventListener('click', function() { selectModel(m.id); });
+
+        var qualityBadge = el('span', { className: 'model-card-quality ' + qualityClass, textContent: m.quality || 'good' });
+        var name = el('span', { className: 'model-card-name', textContent: m.name });
+        var cost = el('span', { className: 'model-card-cost', textContent: m.cost_per_dig });
+        var info = el('span', { className: 'model-card-info', textContent: '\u24d8' });
+        info.addEventListener('click', function(e) {
+            e.stopPropagation();
+            showModelInfo(m);
+        });
+
+        card.appendChild(qualityBadge);
+        card.appendChild(name);
+        card.appendChild(cost);
+        card.appendChild(info);
+        container.appendChild(card);
+    });
+}
+
+function selectModel(modelId) {
+    selectedModelId = modelId;
+    var cards = document.querySelectorAll('.model-card');
+    cards.forEach(function(card) {
+        if (card.getAttribute('data-model-id') === modelId) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+    // Hide info panel when selecting
+    document.getElementById('model-info-panel').style.display = 'none';
+}
+
+function showModelInfo(model) {
+    var panel = document.getElementById('model-info-panel');
+    panel.textContent = '';
+    panel.style.display = '';
+
+    panel.appendChild(el('div', { className: 'info-desc', textContent: model.description || '' }));
+
+    var row = el('div', { className: 'info-row' });
+
+    if (model.pros && model.pros.length) {
+        var prosDiv = el('div', { className: 'info-pros' });
+        prosDiv.appendChild(el('h5', { textContent: 'Pros' }));
+        var prosList = document.createElement('ul');
+        model.pros.forEach(function(p) { prosList.appendChild(el('li', { textContent: p })); });
+        prosDiv.appendChild(prosList);
+        row.appendChild(prosDiv);
+    }
+    if (model.cons && model.cons.length) {
+        var consDiv = el('div', { className: 'info-cons' });
+        consDiv.appendChild(el('h5', { textContent: 'Cons' }));
+        var consList = document.createElement('ul');
+        model.cons.forEach(function(c) { consList.appendChild(el('li', { textContent: c })); });
+        consDiv.appendChild(consList);
+        row.appendChild(consDiv);
+    }
+    panel.appendChild(row);
+
+    var details = el('div', { style: 'margin-top: 8px; color: #666; font-size: 11px;' }, [
+        'Provider: ' + model.provider + ' | Pricing: ' + model.price + ' | Speed: ' + (model.speed || 'medium'),
+    ]);
+    panel.appendChild(details);
+}
+
 function closeSettings() {
     document.getElementById('settings-modal').style.display = 'none';
+    document.getElementById('model-info-panel').style.display = 'none';
 }
 
 async function saveSettings() {
-    var select = document.getElementById('settings-model');
-    var option = select.options[select.selectedIndex];
+    var model = settingsModels.find(function(m) { return m.id === selectedModelId; });
+    if (!model) { showError('No model selected'); return; }
     var body = {
-        model: select.value,
-        provider: option.getAttribute('data-provider'),
+        model: model.id,
+        provider: model.provider,
         anthropic_key: document.getElementById('settings-anthropic-key').value,
         openrouter_key: document.getElementById('settings-openrouter-key').value,
     };
@@ -439,9 +511,9 @@ async function saveSettings() {
             body: JSON.stringify(body),
         });
         var data = await res.json();
-        document.getElementById('model-name').textContent = data.model;
+        document.getElementById('model-name').textContent = model.name;
         closeSettings();
-        showToast('Settings saved');
+        showToast('Model set to ' + model.name);
     } catch (e) {
         showError('Failed to save settings');
     }

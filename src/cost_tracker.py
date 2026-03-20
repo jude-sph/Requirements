@@ -16,14 +16,18 @@ class CostTracker:
         if not pricing:
             logger.warning(f"No pricing data for model '{model}', cost will show $0.00")
 
-    def record(self, call_type: str, level: int, input_tokens: int, output_tokens: int) -> CostEntry:
-        cost = (input_tokens * self._input_rate + output_tokens * self._output_rate) / 1_000_000
+    def record(self, call_type: str, level: int, input_tokens: int, output_tokens: int, actual_cost: float | None = None) -> CostEntry:
+        if actual_cost is not None:
+            cost = actual_cost
+        else:
+            cost = (input_tokens * self._input_rate + output_tokens * self._output_rate) / 1_000_000
         entry = CostEntry(
             call_type=call_type, level=level,
             input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost,
         )
         self._entries.append(entry)
-        logger.debug(f"API call: {call_type} L{level} | {input_tokens} in / {output_tokens} out | ${cost:.4f}")
+        source = "actual" if actual_cost is not None else "estimated"
+        logger.debug(f"API call: {call_type} L{level} | {input_tokens} in / {output_tokens} out | ${cost:.4f} ({source})")
         return entry
 
     def get_summary(self) -> CostSummary:

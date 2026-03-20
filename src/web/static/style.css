@@ -206,6 +206,45 @@ header {
 .form-group select:focus, .form-group input:focus { border-color: #4a4a8a; }
 .form-group small { color: #555; font-size: 11px; margin-top: 4px; display: block; }
 
+/* Model cards */
+.model-cards {
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 260px; overflow-y: auto; padding-right: 4px;
+}
+.model-card {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    background: #0d0d1a; border: 1px solid #1e1e3a; border-radius: 6px;
+    cursor: pointer; font-size: 12px;
+}
+.model-card:hover { border-color: #3a3a5a; }
+.model-card.selected { border-color: #7c7cff; background: #111128; }
+.model-card-name { color: #ccc; flex: 1; font-weight: 500; }
+.model-card-cost { color: #888; font-size: 11px; }
+.model-card-quality {
+    font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
+}
+.quality-excellent { background: #1a3a1a; color: #6c6; }
+.quality-very-good { background: #1a2a3a; color: #6cb4ee; }
+.quality-good { background: #2a2a1a; color: #cc6; }
+.quality-fair { background: #2a1a1a; color: #c88; }
+.model-card-info {
+    color: #555; font-size: 14px; padding: 2px 4px; border-radius: 50%;
+    cursor: pointer; line-height: 1;
+}
+.model-card-info:hover { color: #7c7cff; }
+.model-info-panel {
+    background: #0a0a15; border: 1px solid #1e1e3a; border-radius: 6px;
+    padding: 12px; margin-top: 8px; font-size: 12px;
+}
+.model-info-panel .info-desc { color: #ccc; margin-bottom: 8px; line-height: 1.5; }
+.model-info-panel .info-row { display: flex; gap: 16px; margin-top: 6px; }
+.model-info-panel .info-pros, .model-info-panel .info-cons { flex: 1; }
+.model-info-panel .info-pros h5 { color: #6c6; font-size: 11px; margin-bottom: 4px; }
+.model-info-panel .info-cons h5 { color: #c88; font-size: 11px; margin-bottom: 4px; }
+.model-info-panel ul { list-style: none; padding: 0; }
+.model-info-panel li { color: #999; font-size: 11px; padding: 1px 0; }
+.model-info-panel li::before { content: "\2022 "; color: #555; }
+
 /* Toast */
 .toast {
     position: fixed; bottom: 24px; right: 24px; background: #1a1a2e;

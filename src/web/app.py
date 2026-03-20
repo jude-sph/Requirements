@@ -36,16 +36,7 @@ templates = Jinja2Templates(directory=WEB_DIR / "templates")
 ref_data: WorkbookData | None = None
 jobs: dict[str, "Job"] = {}
 
-# Model options (reuse from configure script)
-MODELS = [
-    {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "provider": "anthropic", "price": "$3 / $15 per Mtok", "cost_per_dig": "~$0.20-0.40"},
-    {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "provider": "anthropic", "price": "$0.80 / $4 per Mtok", "cost_per_dig": "~$0.05-0.10"},
-    {"id": "anthropic/claude-sonnet-4", "name": "Claude Sonnet 4 (OpenRouter)", "provider": "openrouter", "price": "$3 / $15 per Mtok", "cost_per_dig": "~$0.20-0.40"},
-    {"id": "anthropic/claude-haiku-4", "name": "Claude Haiku 4 (OpenRouter)", "provider": "openrouter", "price": "$0.80 / $4 per Mtok", "cost_per_dig": "~$0.05-0.10"},
-    {"id": "google/gemini-2.5-flash", "name": "Gemini 2.5 Flash (OpenRouter)", "provider": "openrouter", "price": "$0.15 / $0.60 per Mtok", "cost_per_dig": "~$0.01-0.03"},
-    {"id": "deepseek/deepseek-chat-v3-0324", "name": "DeepSeek V3 (OpenRouter)", "provider": "openrouter", "price": "$0.27 / $1.10 per Mtok", "cost_per_dig": "~$0.02-0.05"},
-    {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini (OpenRouter)", "provider": "openrouter", "price": "$0.15 / $0.60 per Mtok", "cost_per_dig": "~$0.01-0.03"},
-]
+from src.config import MODEL_CATALOGUE
 
 
 @dataclass
@@ -355,7 +346,7 @@ async def get_settings():
         "model": config.MODEL,
         "has_anthropic_key": bool(config.ANTHROPIC_API_KEY),
         "has_openrouter_key": bool(config.OPENROUTER_API_KEY),
-        "models": MODELS,
+        "models": MODEL_CATALOGUE,
     }
 
 
