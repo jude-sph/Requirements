@@ -796,9 +796,16 @@ async function checkUpdatesQuietly() {
             var settingsBtn = document.querySelector('.header-right .btn-icon');
             settingsBtn.textContent = '\u2699 Settings \u2022';
             settingsBtn.style.color = '#7c7cff';
-            // Reminder popup after 60 seconds, then every 5 minutes
-            setTimeout(function() { showUpdateReminder(data.behind); }, 60000);
-            setInterval(function() { showUpdateReminder(data.behind); }, 300000);
+            // Reminder popup after 60 seconds, once per day
+            var lastNudge = localStorage.getItem('reqdecomp-last-update-nudge');
+            var now = Date.now();
+            var oneDay = 24 * 60 * 60 * 1000;
+            if (!lastNudge || (now - parseInt(lastNudge)) > oneDay) {
+                setTimeout(function() {
+                    localStorage.setItem('reqdecomp-last-update-nudge', String(Date.now()));
+                    showUpdateReminder(data.behind);
+                }, 60000);
+            }
         }
     } catch (e) {
         // Silently ignore
