@@ -75,7 +75,11 @@
             </div>
         </div>
         <div class="action-row">
-            <input type="text" id="dig-ids" class="dig-input" placeholder="DIG IDs (e.g. 9584,9646) or blank for all">
+            <div class="dig-picker-wrap">
+                <div id="dig-tags" class="dig-tags"></div>
+                <input type="text" id="dig-ids" class="dig-input" placeholder="Search DIGs or leave blank for all" onfocus="showDigDropdown()" oninput="filterDigDropdown()">
+                <div id="dig-dropdown" class="dig-dropdown" style="display:none"></div>
+            </div>
             <button class="btn-run" onclick="startRun()">▶ Run</button>
             <button class="btn-secondary" onclick="estimateCost()">Est. Cost</button>
         </div>

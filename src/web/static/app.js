@@ -40,12 +40,105 @@ async function handleUpload(input) {
     }
 }
 
+// DIG picker
+var allDigs = [];
+var selectedDigs = [];
+
+async function loadDigs() {
+    try {
+        var res = await fetch('/digs');
+        var data = await res.json();
+        allDigs = data.digs;
+    } catch (e) {
+        // silently ignore
+    }
+}
+
+function showDigDropdown() {
+    filterDigDropdown();
+    document.getElementById('dig-dropdown').style.display = '';
+}
+
+function hideDigDropdown() {
+    setTimeout(function() {
+        document.getElementById('dig-dropdown').style.display = 'none';
+    }, 200);
+}
+
+function filterDigDropdown() {
+    var query = document.getElementById('dig-ids').value.toLowerCase().trim();
+    var dropdown = document.getElementById('dig-dropdown');
+    dropdown.textContent = '';
+
+    var filtered = allDigs.filter(function(d) {
+        return d.id.indexOf(query) !== -1 || d.text.toLowerCase().indexOf(query) !== -1;
+    });
+
+    if (filtered.length === 0) {
+        dropdown.appendChild(el('div', { className: 'dig-dropdown-empty', textContent: query ? 'No matching DIGs' : 'No DIGs loaded' }));
+        return;
+    }
+
+    filtered.slice(0, 50).forEach(function(d) {
+        var isSelected = selectedDigs.indexOf(d.id) !== -1;
+        var item = el('div', { className: 'dig-dropdown-item' + (isSelected ? ' selected' : '') });
+        item.appendChild(el('span', { className: 'dig-dropdown-id', textContent: d.id }));
+        item.appendChild(el('span', { className: 'dig-dropdown-text', textContent: d.text }));
+        item.addEventListener('click', function() {
+            if (!isSelected) {
+                selectedDigs.push(d.id);
+                renderDigTags();
+                filterDigDropdown();
+            }
+        });
+        dropdown.appendChild(item);
+    });
+
+    if (filtered.length > 50) {
+        dropdown.appendChild(el('div', { className: 'dig-dropdown-empty', textContent: '...and ' + (filtered.length - 50) + ' more. Type to filter.' }));
+    }
+}
+
+function renderDigTags() {
+    var container = document.getElementById('dig-tags');
+    container.textContent = '';
+    selectedDigs.forEach(function(id) {
+        var tag = el('span', { className: 'dig-tag' }, [id]);
+        var x = el('span', { className: 'dig-tag-x', textContent: '\u00d7' });
+        x.addEventListener('click', function() {
+            selectedDigs = selectedDigs.filter(function(d) { return d !== id; });
+            renderDigTags();
+            filterDigDropdown();
+        });
+        tag.appendChild(x);
+        container.appendChild(tag);
+    });
+    // Update hidden input value
+    document.getElementById('dig-ids').value = '';
+}
+
+function getSelectedDigIds() {
+    // If tags are selected, use those. Otherwise use text input.
+    if (selectedDigs.length > 0) {
+        return selectedDigs.join(',');
+    }
+    return document.getElementById('dig-ids').value;
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+    var wrap = document.querySelector('.dig-picker-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('dig-dropdown').style.display = 'none';
+    }
+});
+
 // Run — with cost confirmation
 var pendingRunBody = null;
 
 async function startRun() {
     var body = {
-        dig_ids: document.getElementById('dig-ids').value,
+        dig_ids: getSelectedDigIds(),
         max_depth: parseInt(document.getElementById('depth').value),
         max_breadth: parseInt(document.getElementById('breadth').value),
         skip_vv: !document.getElementById('vv').checked,
@@ -187,7 +280,7 @@ async function cancelJob() {
 // Cost estimate
 async function estimateCost() {
     const body = {
-        dig_ids: document.getElementById('dig-ids').value,
+        dig_ids: getSelectedDigIds(),
         max_depth: parseInt(document.getElementById('depth').value),
         max_breadth: parseInt(document.getElementById('breadth').value),
         skip_vv: !document.getElementById('vv').checked,
@@ -639,6 +732,7 @@ async function installUpdateFromBanner() {
     }
 }
 
-// Load results on page load
+// Load on page start
 loadResults();
+loadDigs();
 checkUpdatesQuietly();

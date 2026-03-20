@@ -100,6 +100,13 @@ async def index(request: Request):
     })
 
 
+@app.get("/digs")
+async def list_digs():
+    if not ref_data:
+        return {"digs": []}
+    return {"digs": [{"id": d["dig_id"], "text": d["dig_text"][:80]} for d in ref_data.digs.values()]}
+
+
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
     # Block upload during running jobs
