@@ -385,5 +385,88 @@ function showToast(msg) {
     setTimeout(function() { toast.style.display = 'none'; }, 4000);
 }
 
+// Software updates
+async function checkForUpdates() {
+    var btn = document.getElementById('update-btn');
+    var status = document.getElementById('update-status');
+    btn.textContent = 'Checking...';
+    btn.disabled = true;
+    try {
+        var res = await fetch('/check-updates');
+        var data = await res.json();
+        if (data.available) {
+            status.textContent = data.behind + ' update(s) available';
+            status.style.color = '#7c7cff';
+            btn.textContent = 'Install Update';
+            btn.disabled = false;
+            btn.onclick = installUpdate;
+        } else {
+            status.textContent = 'Up to date';
+            status.style.color = '#5a5';
+            btn.textContent = 'Check for Updates';
+            btn.disabled = false;
+            btn.onclick = checkForUpdates;
+        }
+    } catch (e) {
+        status.textContent = 'Could not check';
+        status.style.color = '#c66';
+        btn.textContent = 'Check for Updates';
+        btn.disabled = false;
+    }
+}
+
+async function installUpdate() {
+    var btn = document.getElementById('update-btn');
+    var status = document.getElementById('update-status');
+    btn.textContent = 'Updating...';
+    btn.disabled = true;
+    try {
+        var res = await fetch('/update', { method: 'POST' });
+        var data = await res.json();
+        if (data.status === 'ok' && data.updated) {
+            status.textContent = 'Updated! Restart server to apply.';
+            status.style.color = '#5a5';
+            btn.textContent = 'Updated';
+            showToast('Update installed. Restart the server to apply changes.');
+        } else if (data.status === 'ok') {
+            status.textContent = data.message;
+            status.style.color = '#5a5';
+            btn.textContent = 'Check for Updates';
+            btn.disabled = false;
+            btn.onclick = checkForUpdates;
+        } else {
+            status.textContent = data.message;
+            status.style.color = '#c66';
+            btn.textContent = 'Check for Updates';
+            btn.disabled = false;
+            btn.onclick = checkForUpdates;
+        }
+    } catch (e) {
+        status.textContent = 'Update failed';
+        status.style.color = '#c66';
+        btn.textContent = 'Check for Updates';
+        btn.disabled = false;
+        btn.onclick = checkForUpdates;
+    }
+}
+
+// Check for updates on page load (non-blocking)
+async function checkUpdatesQuietly() {
+    try {
+        var res = await fetch('/check-updates');
+        var data = await res.json();
+        if (data.available) {
+            // Show indicator on settings button
+            var settingsBtn = document.querySelector('.header-right .btn-icon');
+            settingsBtn.textContent = '\u2699 Settings \u2022';
+            settingsBtn.style.color = '#7c7cff';
+            settingsBtn.title = data.behind + ' update(s) available';
+        }
+    } catch (e) {
+        // Silently ignore
+    }
+}
+
 // Load results on page load
 loadResults();
+checkUpdatesQuietly();

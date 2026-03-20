@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -396,6 +397,67 @@ async def dry_run(request: Request):
         "max_calls_per_dig": calls_per_dig,
         "max_total_calls": n * calls_per_dig,
     }
+
+
+@app.post("/update")
+async def update_software():
+    """Pull latest from GitHub and reinstall."""
+    import subprocess
+    try:
+        # Check if git is available
+        git_check = subprocess.run(["git", "--version"], capture_output=True, text=True)
+        if git_check.returncode != 0:
+            return {"status": "error", "message": "Git is not installed. Download updates manually from GitHub."}
+
+        # Pull latest
+        pull = subprocess.run(
+            ["git", "pull"], capture_output=True, text=True,
+            cwd=str(config.PACKAGE_ROOT), timeout=30,
+        )
+        if pull.returncode != 0:
+            return {"status": "error", "message": "Git pull failed: " + pull.stderr.strip()}
+
+        if "Already up to date" in pull.stdout:
+            return {"status": "ok", "message": "Already up to date.", "updated": False}
+
+        # Reinstall package
+        install = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-e", ".", "-q"],
+            capture_output=True, text=True,
+            cwd=str(config.PACKAGE_ROOT), timeout=60,
+        )
+
+        changes = pull.stdout.strip()
+        return {
+            "status": "ok",
+            "message": "Updated! Restart the server to apply changes.",
+            "updated": True,
+            "details": changes,
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/check-updates")
+async def check_updates():
+    """Check if there are remote updates available."""
+    import subprocess
+    try:
+        # Fetch remote without merging
+        subprocess.run(
+            ["git", "fetch", "--quiet"], capture_output=True, text=True,
+            cwd=str(config.PACKAGE_ROOT), timeout=15,
+        )
+        # Compare local vs remote
+        result = subprocess.run(
+            ["git", "rev-list", "HEAD..@{u}", "--count"],
+            capture_output=True, text=True,
+            cwd=str(config.PACKAGE_ROOT), timeout=10,
+        )
+        behind = int(result.stdout.strip()) if result.returncode == 0 else 0
+        return {"behind": behind, "available": behind > 0}
+    except Exception:
+        return {"behind": 0, "available": False}
 
 
 def start_server(port: int = 8000):
