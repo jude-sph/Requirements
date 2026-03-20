@@ -1003,8 +1003,32 @@ handleEvent = function(event) {
     }
 };
 
+// Check API key status on load
+async function checkKeyStatus() {
+    try {
+        var res = await fetch('/settings');
+        var data = await res.json();
+        var model = data.models.find(function(m) { return m.id === data.model; });
+        if (model) {
+            var hasKey = (model.provider === 'anthropic' && data.has_anthropic_key) ||
+                         (model.provider === 'openrouter' && data.has_openrouter_key);
+            if (!hasKey) {
+                var dot = document.querySelector('.model-indicator .dot');
+                if (dot) { dot.style.background = '#c44'; }
+                showError('No API key set for ' + model.provider + '. Click Settings to configure.');
+            }
+        }
+        if (!data.has_anthropic_key && !data.has_openrouter_key) {
+            showError('No API keys configured. Click Settings to add your Anthropic or OpenRouter key.');
+        }
+    } catch (e) {
+        // silently ignore
+    }
+}
+
 // Load on page start
 loadResults();
 loadDigs();
 checkUpdatesQuietly();
+checkKeyStatus();
 showShipName();
