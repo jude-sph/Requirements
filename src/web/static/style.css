@@ -28,6 +28,18 @@ header {
 }
 .btn-icon:hover { border-color: #4a4a6a; color: #ccc; }
 
+/* Update banner */
+.update-banner {
+    background: #1a1a3a; border-bottom: 1px solid #2a2a5a; padding: 8px 24px;
+    display: flex; align-items: center; gap: 12px; color: #b8b8ff; font-size: 13px;
+}
+.btn-update-banner {
+    background: #2a2a5a; color: #b8b8ff; border: 1px solid #3a3a6a; border-radius: 4px;
+    padding: 3px 12px; font-size: 12px; cursor: pointer;
+}
+.btn-update-banner:hover { background: #3a3a6a; }
+.btn-dismiss { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; margin-left: auto; }
+
 /* Error banner */
 .error-banner {
     background: #3a1515; border-bottom: 1px solid #5a2020; padding: 10px 24px;

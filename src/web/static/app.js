@@ -605,14 +605,37 @@ async function checkUpdatesQuietly() {
         var res = await fetch('/check-updates');
         var data = await res.json();
         if (data.available) {
-            // Show indicator on settings button
+            var banner = document.getElementById('update-banner');
+            document.getElementById('update-banner-text').textContent =
+                data.behind + ' update(s) available \u2014 new features and fixes ready to install';
+            banner.style.display = '';
+            // Also mark settings button
             var settingsBtn = document.querySelector('.header-right .btn-icon');
             settingsBtn.textContent = '\u2699 Settings \u2022';
             settingsBtn.style.color = '#7c7cff';
-            settingsBtn.title = data.behind + ' update(s) available';
         }
     } catch (e) {
         // Silently ignore
+    }
+}
+
+async function installUpdateFromBanner() {
+    var banner = document.getElementById('update-banner');
+    document.getElementById('update-banner-text').textContent = 'Updating...';
+    try {
+        var res = await fetch('/update', { method: 'POST' });
+        var data = await res.json();
+        if (data.status === 'ok' && data.updated) {
+            document.getElementById('update-banner-text').textContent = 'Updated! Restart the server to apply changes.';
+            showToast('Update installed. Restart the server to apply.');
+        } else if (data.status === 'ok') {
+            banner.style.display = 'none';
+            showToast(data.message);
+        } else {
+            document.getElementById('update-banner-text').textContent = 'Update failed: ' + data.message;
+        }
+    } catch (e) {
+        document.getElementById('update-banner-text').textContent = 'Update failed';
     }
 }
 
