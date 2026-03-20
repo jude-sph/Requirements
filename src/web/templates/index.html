@@ -37,7 +37,13 @@
 
     <!-- Input Section -->
     <section class="input-section">
-        <div class="section-label">Input</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="section-label">Input</div>
+            <div class="ship-name-row">
+                <span id="ship-name" class="ship-name"></span>
+                <button class="btn-regen" onclick="regenShipName()" title="New ship name">&#x21bb;</button>
+            </div>
+        </div>
         <div class="input-row">
             <div style="flex:1;">
                 <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">

@@ -236,7 +236,7 @@ function handleEvent(event) {
             bar.style.width = ((event.index - 1) / event.total * 100) + '%';
             break;
         case 'phase':
-            detail.textContent = event.phase + ': ' + event.detail;
+            detail.textContent = getFunLoadingMessage(event.phase) + ' \u2014 ' + event.detail;
             break;
         case 'cost':
             cost.textContent = '$' + event.total_cost.toFixed(4);
@@ -253,7 +253,7 @@ function handleEvent(event) {
             setTimeout(function() {
                 hideProgress();
                 loadResults();
-                showToast('Done! ' + event.total_nodes + ' requirements generated ($' + event.total_cost.toFixed(4) + ')');
+                checkAchievements(event.total_digs, event.total_nodes, event.total_cost);
             }, 1500);
             break;
         case 'error':
@@ -768,7 +768,190 @@ async function installUpdateFromBanner() {
     }
 }
 
+// ============================================================
+// FUN FEATURES
+// ============================================================
+
+// 1. SHIP NAME GENERATOR — one name per session, shown near source doc
+var SHIP_PREFIXES = ['CCGS', 'HMCS', 'HMS', 'RV', 'MV', 'SS', 'CCGS'];
+var SHIP_NAMES = [
+    'Icey McIceface', 'Absolute Unit', 'Definitely Floats', 'Sir Barges-a-Lot',
+    'The Requirement Was Met', 'Strongly Worded Letter', 'Full Ahead Paperwork',
+    'Shall Compliance', 'Polar Persuasion', 'Arctic Approval',
+    'Breadth of Fresh Air', 'Hull Lotta Love', 'The Decomposer',
+    'Stern Talking To', 'Bow Before Requirements', 'Draft Dodger',
+    'Ballast in Show', 'Rudder Nonsense', 'Keel Deal', 'Port Authority Figure',
+    'Starboard Suggestion', 'Bilge Thinker', 'Mast Confusion',
+    'Davit Jones\u2019 Spreadsheet', 'The Unsinkable Spec', 'Propeller Head',
+    'Buoy Oh Buoy', 'Cabin Fever Dream', 'Gangway To Success',
+    'Nautical But Nice', 'Berth Control', 'Anchor Management',
+    'Vessel of Knowledge', 'Ship Shape McGee', 'The IEEE Compliant',
+    'Prow-fessional', 'Seaworthy Document', 'Tug of Requirements',
+];
+
+function generateShipName() {
+    var stored = localStorage.getItem('reqdecomp-ship-name');
+    if (stored) return stored;
+    var prefix = SHIP_PREFIXES[Math.floor(Math.random() * SHIP_PREFIXES.length)];
+    var name = SHIP_NAMES[Math.floor(Math.random() * SHIP_NAMES.length)];
+    var full = prefix + ' ' + name;
+    localStorage.setItem('reqdecomp-ship-name', full);
+    return full;
+}
+
+function showShipName() {
+    var name = generateShipName();
+    var container = document.getElementById('ship-name');
+    if (container) container.textContent = '\u2693 ' + name;
+}
+
+function regenShipName() {
+    localStorage.removeItem('reqdecomp-ship-name');
+    showShipName();
+    var container = document.getElementById('ship-name');
+    container.classList.add('ship-name-flash');
+    setTimeout(function() { container.classList.remove('ship-name-flash'); }, 600);
+}
+
+// 2. MOTIVATIONAL LOADING MESSAGES
+var LOADING_MESSAGES = {
+    decompose: [
+        'Consulting the ship elders',
+        'Calculating buoyancy of requirements',
+        'Asking the sea for permission',
+        'Decomposing with naval precision',
+        'Splitting atoms... err, requirements',
+        'Channeling the spirit of Brunel',
+        'Translating engineer-speak to shall-speak',
+        'Descending the hierarchy with grace',
+        'Summoning the ghost of ISO 15288',
+        'Breaking things down, shipwright style',
+    ],
+    decompose_done: [
+        'Requirements have been decomposed!',
+        'The hierarchy has spoken',
+        'Tree successfully grown',
+    ],
+    vv: [
+        'Verifying that water is indeed wet',
+        'Planning how to prove the ship ships',
+        'Scheduling an unreasonable number of inspections',
+        'Ensuring we can test what we shall\'d',
+        'Plotting acceptance through 5 phases of grief',
+        'Determining if this needs a sea trial or just a stern look',
+        'Writing test cases with nautical flair',
+    ],
+    judge: [
+        'Summoning the harshest reviewer known to engineering',
+        'Preparing for constructive criticism',
+        'The judge has entered the courtroom',
+        'Auditing requirements with a magnifying glass',
+        'Finding problems so you don\'t have to',
+    ],
+    refine: [
+        'Polishing the requirements to a mirror finish',
+        'Applying corrective action with enthusiasm',
+        'Making it better, one shall at a time',
+        'Turning feedback into perfection',
+    ],
+};
+
+function getFunLoadingMessage(phase) {
+    var messages = LOADING_MESSAGES[phase] || LOADING_MESSAGES.decompose;
+    return messages[Math.floor(Math.random() * messages.length)];
+}
+
+// 3. ACHIEVEMENT BADGES
+var ACHIEVEMENTS = [
+    { id: 'first', check: function(d,n,c) { return true; }, title: 'First Decomposition', icon: '\u{1F3C6}', desc: 'You ran your first requirement!' },
+    { id: 'ten_reqs', check: function(d,n,c) { return n >= 10; }, title: '10 Requirements Club', icon: '\u{1F4CB}', desc: '10+ requirements in one run' },
+    { id: 'fifty_reqs', check: function(d,n,c) { return n >= 50; }, title: 'Requirement Machine', icon: '\u{1F3ED}', desc: '50+ requirements in one run!' },
+    { id: 'budget', check: function(d,n,c) { return c >= 1; }, title: 'Budget Explorer', icon: '\u{1F4B8}', desc: 'Spent over $1 in one run' },
+    { id: 'destroyer', check: function(d,n,c) { return c >= 10; }, title: 'Budget Destroyer', icon: '\u{1F525}', desc: 'Spent over $10 in one run!' },
+    { id: 'penny', check: function(d,n,c) { return c > 0 && c < 0.05; }, title: 'Penny Pincher', icon: '\u{1FA99}', desc: 'Run completed for under 5 cents' },
+    { id: 'night', check: function() { var h = new Date().getHours(); return h >= 23 || h < 5; }, title: 'Night Owl', icon: '\u{1F989}', desc: 'Decomposing after midnight?' },
+    { id: 'batch5', check: function(d) { return d >= 5; }, title: 'Batch Commander', icon: '\u{2693}', desc: '5+ DIGs in one batch' },
+    { id: 'batch20', check: function(d) { return d >= 20; }, title: 'Fleet Admiral', icon: '\u{1F6A2}', desc: '20+ DIGs in one batch!' },
+    { id: 'morning', check: function() { var h = new Date().getHours(); return h >= 5 && h < 8; }, title: 'Early Bird', icon: '\u{1F426}', desc: 'Decomposing at the crack of dawn' },
+];
+
+function checkAchievements(digs, nodes, cost) {
+    var earned = JSON.parse(localStorage.getItem('reqdecomp-achievements') || '[]');
+    var newOnes = [];
+    ACHIEVEMENTS.forEach(function(a) {
+        if (earned.indexOf(a.id) === -1 && a.check(digs, nodes, cost)) {
+            earned.push(a.id);
+            newOnes.push(a);
+        }
+    });
+    localStorage.setItem('reqdecomp-achievements', JSON.stringify(earned));
+
+    // Show new achievements with staggered popups
+    newOnes.forEach(function(a, i) {
+        setTimeout(function() { showAchievementPopup(a); }, i * 2000);
+    });
+}
+
+function showAchievementPopup(achievement) {
+    var popup = el('div', { className: 'achievement-popup' });
+    popup.appendChild(el('div', { className: 'achievement-icon', textContent: achievement.icon }));
+    popup.appendChild(el('div', { className: 'achievement-text' }, [
+        el('div', { className: 'achievement-title', textContent: 'Achievement Unlocked!' }),
+        el('div', { className: 'achievement-name', textContent: achievement.title }),
+        el('div', { className: 'achievement-desc', textContent: achievement.desc }),
+    ]));
+    document.body.appendChild(popup);
+
+    // Animate in
+    setTimeout(function() { popup.classList.add('show'); }, 50);
+    // Animate out
+    setTimeout(function() {
+        popup.classList.remove('show');
+        setTimeout(function() { popup.remove(); }, 500);
+    }, 4000);
+}
+
+// 4. REQUIREMENT HAIKU — shown after each DIG completes
+var HAIKU_TEMPLATES = [
+    function(r) { return 'Requirements flow down\nFrom ship to system to part\nThe shall is the law'; },
+    function(r) { return 'Breadth, depth, and breadth more\nThe tree grows with every call\nEngineers rejoice'; },
+    function(r) { return 'Ice meets hull design\nPolar winds test every joint\nThe spec holds the line'; },
+    function(r) { return 'Five phases of proof\nDesign, build, test, sail, accept\nAssurance complete'; },
+    function(r) { return 'The vessel shall float\nThis requirement seems fair\nMoving on, next DIG'; },
+    function(r) { return 'Tokens spent like rain\nThe model thinks and responds\nJSON returns true'; },
+    function(r) { return 'A tree of shalls grows\nRoot to leaf, the spec descends\nShipbuilding begins'; },
+    function(r) { return 'The judge has reviewed\nSome issues found, refine now\nPerfection takes time'; },
+    function(r) { return 'From DIG to design\nAbstract words become real steel\nThe ship takes its shape'; },
+    function(r) { return 'Propulsion demands\nShaft power in megawatts\nTBD for now'; },
+];
+
+function showRandomHaiku() {
+    var haiku = HAIKU_TEMPLATES[Math.floor(Math.random() * HAIKU_TEMPLATES.length)]();
+    var popup = el('div', { className: 'haiku-popup' });
+    var lines = haiku.split('\n');
+    popup.appendChild(el('div', { className: 'haiku-label', textContent: '\u{1F338} Requirement Haiku' }));
+    lines.forEach(function(line) {
+        popup.appendChild(el('div', { className: 'haiku-line', textContent: line }));
+    });
+    document.body.appendChild(popup);
+    setTimeout(function() { popup.classList.add('show'); }, 50);
+    setTimeout(function() {
+        popup.classList.remove('show');
+        setTimeout(function() { popup.remove(); }, 500);
+    }, 5000);
+}
+
+// Show haiku on dig_complete events
+var originalHandleEvent = handleEvent;
+handleEvent = function(event) {
+    originalHandleEvent(event);
+    if (event.type === 'dig_complete') {
+        setTimeout(showRandomHaiku, 500);
+    }
+};
+
 // Load on page start
 loadResults();
 loadDigs();
 checkUpdatesQuietly();
+showShipName();
