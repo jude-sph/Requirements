@@ -826,20 +826,46 @@ async function installUpdateFromBanner() {
 // ============================================================
 
 // 1. SHIP NAME GENERATOR — one name per session, shown near source doc
-var SHIP_PREFIXES = ['CCGS', 'HMCS', 'HMS', 'RV', 'MV', 'SS', 'CCGS'];
+var SHIP_PREFIXES = ['CCGS', 'HMCS', 'HMS', 'RV', 'MV', 'SS', 'CCGS', 'FV', 'SY'];
 var SHIP_NAMES = [
+    // Requirements themed
     'Icey McIceface', 'Absolute Unit', 'Definitely Floats', 'Sir Barges-a-Lot',
     'The Requirement Was Met', 'Strongly Worded Letter', 'Full Ahead Paperwork',
     'Shall Compliance', 'Polar Persuasion', 'Arctic Approval',
-    'Breadth of Fresh Air', 'Hull Lotta Love', 'The Decomposer',
-    'Stern Talking To', 'Bow Before Requirements', 'Draft Dodger',
-    'Ballast in Show', 'Rudder Nonsense', 'Keel Deal', 'Port Authority Figure',
+    'The Decomposer', 'The IEEE Compliant', 'Seaworthy Document',
+    'Spec-tacular', 'The Validation Station', 'Acceptance Criteria',
+    'Traceability Matrix', 'Scope Creep', 'Shall We Dance',
+    'The Verifier', 'Test Case Scenario', 'Edge Case Explorer',
+    'Minimum Viable Vessel', 'The Deliverable', 'Sprint Review',
+    'Backlog Buster', 'Compliance Cruiser', 'The Auditor General',
+    'Regulatory Rampage', 'Standards Bearer', 'Due Diligence',
+    // Nautical puns
+    'Breadth of Fresh Air', 'Hull Lotta Love', 'Stern Talking To',
+    'Bow Before Requirements', 'Draft Dodger', 'Ballast in Show',
+    'Rudder Nonsense', 'Keel Deal', 'Port Authority Figure',
     'Starboard Suggestion', 'Bilge Thinker', 'Mast Confusion',
     'Davit Jones\u2019 Spreadsheet', 'The Unsinkable Spec', 'Propeller Head',
     'Buoy Oh Buoy', 'Cabin Fever Dream', 'Gangway To Success',
     'Nautical But Nice', 'Berth Control', 'Anchor Management',
-    'Vessel of Knowledge', 'Ship Shape McGee', 'The IEEE Compliant',
-    'Prow-fessional', 'Seaworthy Document', 'Tug of Requirements',
+    'Vessel of Knowledge', 'Ship Shape McGee', 'Prow-fessional',
+    'Tug of Requirements', 'Knot My Problem', 'Seas the Day',
+    'Current Affairs', 'Pier Pressure', 'The Salty Engineer',
+    'Aye Aye Captain', 'Bow Flex', 'Stern Words',
+    'Wake Up Call', 'The Plank Walker', 'Overboard Expectations',
+    'Torpedo\u2019d Budget', 'Depth Charge', 'Surface Tension',
+    // Icebreaker themed
+    'Chill Factor', 'Breaking the Ice', 'Polar Express Delivery',
+    'Frostbite Fighter', 'The Cold Shoulder', 'Absolute Zero Tolerance',
+    'Floe Rider', 'Ice to Meet You', 'Frozen Asset',
+    'Sub-Zero Hero', 'Arctic Fox Trot', 'The Thaw Enforcer',
+    'Glacial Pace', 'Slippery When Spec\u2019d', 'Permafrost Puncher',
+    'Northern Exposure', 'Tundra Thunder', 'Ice Ice Baby',
+    // AI themed
+    'Token Gesture', 'The Prompt Engineer', 'Neural Navigator',
+    'Hallucination Station', 'The Context Window', 'Attention Mechanism',
+    'Transformer Prime', 'Weight Decay', 'Gradient Descent',
+    'Overfitted', 'The Training Run', 'Loss Function',
+    'Batch Processor', 'The Epoch', 'Latent Space Explorer',
 ];
 
 function generateShipName() {
@@ -966,16 +992,43 @@ function showAchievementPopup(achievement) {
 
 // 4. REQUIREMENT HAIKU — shown after each DIG completes
 var HAIKU_TEMPLATES = [
-    function(r) { return 'Requirements flow down\nFrom ship to system to part\nThe shall is the law'; },
-    function(r) { return 'Breadth, depth, and breadth more\nThe tree grows with every call\nEngineers rejoice'; },
-    function(r) { return 'Ice meets hull design\nPolar winds test every joint\nThe spec holds the line'; },
-    function(r) { return 'Five phases of proof\nDesign, build, test, sail, accept\nAssurance complete'; },
-    function(r) { return 'The vessel shall float\nThis requirement seems fair\nMoving on, next DIG'; },
-    function(r) { return 'Tokens spent like rain\nThe model thinks and responds\nJSON returns true'; },
-    function(r) { return 'A tree of shalls grows\nRoot to leaf, the spec descends\nShipbuilding begins'; },
-    function(r) { return 'The judge has reviewed\nSome issues found, refine now\nPerfection takes time'; },
-    function(r) { return 'From DIG to design\nAbstract words become real steel\nThe ship takes its shape'; },
-    function(r) { return 'Propulsion demands\nShaft power in megawatts\nTBD for now'; },
+    // Requirements
+    function() { return 'Requirements flow down\nFrom ship to system to part\nThe shall is the law'; },
+    function() { return 'Breadth, depth, and breadth more\nThe tree grows with every call\nEngineers rejoice'; },
+    function() { return 'Five phases of proof\nDesign, build, test, sail, accept\nAssurance complete'; },
+    function() { return 'The vessel shall float\nThis requirement seems fair\nMoving on, next DIG'; },
+    function() { return 'A tree of shalls grows\nRoot to leaf, the spec descends\nShipbuilding begins'; },
+    function() { return 'The judge has reviewed\nSome issues found, refine now\nPerfection takes time'; },
+    function() { return 'From DIG to design\nAbstract words become real steel\nThe ship takes its shape'; },
+    function() { return 'Propulsion demands\nShaft power in megawatts\nTBD for now'; },
+    function() { return 'Decompose again\nLevel one becomes level four\nTurtles all the way'; },
+    function() { return 'The spec reviewer\nFinds seventeen new issues\nBack to the drawing'; },
+    // Ice and sea
+    function() { return 'Ice meets hull design\nPolar winds test every joint\nThe spec holds the line'; },
+    function() { return 'Through arctic waters\nThe icebreaker holds its course\nRequirements met'; },
+    function() { return 'Frozen sea ahead\nThe hull was built for this day\nForward, three knots strong'; },
+    function() { return 'Salt spray on the bow\nSea state five, the vessel rolls\nWithin spec, barely'; },
+    function() { return 'Northern lights above\nBelow, the engine room hums\nShaft power confirmed'; },
+    function() { return 'The ice belt plating\nThick enough for polar seas\nLloyd\u2019s would approve'; },
+    // AI and process
+    function() { return 'Tokens spent like rain\nThe model thinks and responds\nJSON returns true'; },
+    function() { return 'The API calls\nEach one costs a fraction more\nBudget monitoring'; },
+    function() { return 'Claude reads the DIG text\nThinks deeply about hull strength\nOutputs a JSON'; },
+    function() { return 'Context window full\nOf system hierarchies\nAnd chapter structures'; },
+    function() { return 'Prompt engineering\nThe art of asking machines\nTo write shall statements'; },
+    function() { return 'Retry number three\nThe model returns nothing\nPatience is a skill'; },
+    // Philosophical
+    function() { return 'What is a vessel\nBut requirements made of steel\nFloating on the sea'; },
+    function() { return 'The engineer asks\nWhy must the breadth be that wide\nThe DIG does not say'; },
+    function() { return 'Verification\nProving what we said we\u2019d build\nIs what we have built'; },
+    function() { return 'A ship in dry dock\nWaits for its acceptance phase\nSea trials are next'; },
+    function() { return 'One hundred and eight\nDIGs waiting to be processed\nClick run, make some tea'; },
+    function() { return 'The spreadsheet grows wide\nColumns stretch beyond the screen\nExport to Excel'; },
+    // Silly
+    function() { return 'Shall shall shall shall shall\nShall shall shall shall shall shall shall shall\nShall shall shall shall shall'; },
+    function() { return 'TBD awaits\nThe value is not yet known\nAsking the ocean'; },
+    function() { return 'My cost estimate\nSaid it would be two dollars\nIt was twenty-three'; },
+    function() { return 'The midnight engineer\nStill running batch processing\nCoffee getting cold'; },
 ];
 
 function showRandomHaiku() {
