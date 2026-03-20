@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reqdecomp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Decompose high-level shipbuilding requirements (DIGs) into multi-level formal 'shall' statements using LLMs"
 readme = "README.md"
 requires-python = ">=3.11"
