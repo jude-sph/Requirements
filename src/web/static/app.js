@@ -156,14 +156,22 @@ async function startRun() {
         pendingRunBody = body;
         var modalBody = document.getElementById('cost-modal-body');
         modalBody.textContent = '';
-        modalBody.appendChild(el('p', { style: 'color:#ccc; font-size:13px; margin-bottom:12px;' }, [
+        modalBody.appendChild(el('p', { style: 'color:#ccc; font-size:13px; margin-bottom:8px;' }, [
             est.digs + ' DIG(s) \u00d7 ' + est.max_calls_per_dig + ' max API calls each'
         ]));
         modalBody.appendChild(el('p', { style: 'color:#fff; font-size:15px; font-weight:500;' }, [
             'Up to ' + est.max_total_calls + ' API calls'
         ]));
+        if (est.est_cost_usd > 0) {
+            modalBody.appendChild(el('p', { style: 'color:#7c7cff; font-size:18px; font-weight:600; margin-top:8px;' }, [
+                'Estimated cost: $' + est.est_cost_usd.toFixed(2)
+            ]));
+            modalBody.appendChild(el('p', { style: 'color:#666; font-size:11px; margin-top:2px;' }, [
+                'Using ' + est.model
+            ]));
+        }
         modalBody.appendChild(el('p', { style: 'color:#888; font-size:11px; margin-top:8px;' }, [
-            'Actual calls will likely be fewer (depends on tree fan-out and early termination).'
+            'Actual cost will likely be lower (depends on tree fan-out and early termination).'
         ]));
         document.getElementById('cost-modal').style.display = '';
     } catch (e) {
@@ -293,7 +301,8 @@ async function estimateCost() {
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        showToast('Est: ' + data.digs + ' DIGs \u00d7 ' + data.max_calls_per_dig + ' calls = ' + data.max_total_calls + ' max API calls');
+        var costStr = data.est_cost_usd > 0 ? ' \u2248 $' + data.est_cost_usd.toFixed(2) : '';
+        showToast('Est: ' + data.digs + ' DIGs \u00d7 ' + data.max_calls_per_dig + ' calls = ' + data.max_total_calls + ' max calls' + costStr + ' (' + data.model + ')');
     } catch (e) {
         showError('Estimate failed');
     }

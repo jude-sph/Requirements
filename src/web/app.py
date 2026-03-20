@@ -398,10 +398,22 @@ async def dry_run(request: Request):
     if skip_judge:
         calls_per_dig -= 1
 
+    # Estimate cost based on current model pricing
+    # Average ~4000 input tokens and ~800 output tokens per call (observed from test runs)
+    avg_input = 4000
+    avg_output = 800
+    pricing = config.MODEL_PRICING.get(config.MODEL, {})
+    input_rate = pricing.get("input_per_mtok", 0)
+    output_rate = pricing.get("output_per_mtok", 0)
+    cost_per_call = (avg_input * input_rate + avg_output * output_rate) / 1_000_000
+    est_cost = n * calls_per_dig * cost_per_call
+
     return {
         "digs": n,
         "max_calls_per_dig": calls_per_dig,
         "max_total_calls": n * calls_per_dig,
+        "est_cost_usd": round(est_cost, 2),
+        "model": config.MODEL,
     }
 
 
