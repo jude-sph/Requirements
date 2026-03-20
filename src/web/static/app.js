@@ -789,16 +789,65 @@ async function checkUpdatesQuietly() {
         if (data.available) {
             var banner = document.getElementById('update-banner');
             document.getElementById('update-banner-text').textContent =
-                data.behind + ' update(s) available \u2014 new features and fixes ready to install';
+                '\u{1F6A2} ' + data.behind + ' update(s) available \u2014 new features and fixes ready to install!';
             banner.style.display = '';
+            banner.classList.add('update-banner-pulse');
             // Also mark settings button
             var settingsBtn = document.querySelector('.header-right .btn-icon');
             settingsBtn.textContent = '\u2699 Settings \u2022';
             settingsBtn.style.color = '#7c7cff';
+            // Reminder popup after 60 seconds, then every 5 minutes
+            setTimeout(function() { showUpdateReminder(data.behind); }, 60000);
+            setInterval(function() { showUpdateReminder(data.behind); }, 300000);
         }
     } catch (e) {
         // Silently ignore
     }
+}
+
+var UPDATE_NUDGES = [
+    'A new version is waiting for you!',
+    'Updates available \u2014 bug fixes and new features inside!',
+    'Your version is behind. Update for the latest improvements!',
+    'Psst... there\u2019s an update. It\u2019s got the good stuff.',
+    'New version detected. The ship wants to evolve!',
+    'Updates are like wind in your sails \u2014 don\u2019t ignore them!',
+    'The engineers have been busy. Update to see what\u2019s new!',
+    'Running an old version? That\u2019s not very IEEE 29481 of you.',
+];
+
+function showUpdateReminder(count) {
+    // Don't show if banner is already dismissed or update installed
+    var banner = document.getElementById('update-banner');
+    if (banner.style.background && banner.style.background.indexOf('2a2a15') !== -1) return; // restart notice showing
+
+    var nudge = UPDATE_NUDGES[Math.floor(Math.random() * UPDATE_NUDGES.length)];
+    var popup = el('div', { className: 'update-reminder-popup' });
+    popup.appendChild(el('div', { className: 'update-reminder-icon', textContent: '\u{1F4E6}' }));
+    var textDiv = el('div', { className: 'update-reminder-text' });
+    textDiv.appendChild(el('div', { style: 'font-weight:600; color:#fff; margin-bottom:4px;', textContent: count + ' update(s) available' }));
+    textDiv.appendChild(el('div', { style: 'color:#aaa; font-size:12px;', textContent: nudge }));
+    popup.appendChild(textDiv);
+    var btnRow = el('div', { style: 'display:flex; gap:8px; margin-left:auto;' });
+    var updateBtn = el('button', { className: 'btn-run', style: 'padding:6px 14px; font-size:12px;', textContent: 'Update Now' });
+    updateBtn.addEventListener('click', function() { popup.remove(); installUpdateFromBanner(); });
+    var dismissBtn = el('button', { className: 'btn-secondary', style: 'padding:6px 10px; font-size:11px;', textContent: 'Later' });
+    dismissBtn.addEventListener('click', function() {
+        popup.classList.remove('show');
+        setTimeout(function() { popup.remove(); }, 400);
+    });
+    btnRow.appendChild(updateBtn);
+    btnRow.appendChild(dismissBtn);
+    popup.appendChild(btnRow);
+    document.body.appendChild(popup);
+    setTimeout(function() { popup.classList.add('show'); }, 50);
+    // Auto dismiss after 15 seconds
+    setTimeout(function() {
+        if (popup.parentNode) {
+            popup.classList.remove('show');
+            setTimeout(function() { if (popup.parentNode) popup.remove(); }, 400);
+        }
+    }, 15000);
 }
 
 async function installUpdateFromBanner() {

@@ -30,15 +30,41 @@ header {
 
 /* Update banner */
 .update-banner {
-    background: #1a1a3a; border-bottom: 1px solid #2a2a5a; padding: 8px 24px;
+    background: #1a1a3a; border-bottom: 1px solid #2a2a5a; padding: 10px 24px;
     display: flex; align-items: center; gap: 12px; color: #b8b8ff; font-size: 13px;
 }
-.btn-update-banner {
-    background: #2a2a5a; color: #b8b8ff; border: 1px solid #3a3a6a; border-radius: 4px;
-    padding: 3px 12px; font-size: 12px; cursor: pointer;
+.update-banner-pulse {
+    animation: banner-pulse 3s ease-in-out infinite;
 }
-.btn-update-banner:hover { background: #3a3a6a; }
+@keyframes banner-pulse {
+    0%, 100% { background: #1a1a3a; }
+    50% { background: #22224a; }
+}
+.btn-update-banner {
+    background: #3a3a7a; color: #fff; border: 1px solid #5a5aaa; border-radius: 4px;
+    padding: 5px 16px; font-size: 12px; cursor: pointer; font-weight: 500;
+    animation: btn-glow 2s ease-in-out infinite;
+}
+@keyframes btn-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(124, 124, 255, 0); }
+    50% { box-shadow: 0 0 12px rgba(124, 124, 255, 0.4); }
+}
+.btn-update-banner:hover { background: #4a4a9a; }
 .btn-dismiss { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; margin-left: auto; }
+
+/* Update reminder popup */
+.update-reminder-popup {
+    position: fixed; bottom: -150px; right: 24px; z-index: 300;
+    background: linear-gradient(135deg, #1a1a3a, #1a2a4a);
+    border: 1px solid #3a3a6a; border-radius: 12px;
+    padding: 16px 20px; display: flex; gap: 14px; align-items: center;
+    box-shadow: 0 8px 32px rgba(40, 40, 160, 0.4);
+    transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 480px;
+}
+.update-reminder-popup.show { bottom: 24px; }
+.update-reminder-icon { font-size: 28px; }
+.update-reminder-text { flex: 1; }
 
 /* Error banner */
 .error-banner {
