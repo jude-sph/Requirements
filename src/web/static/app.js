@@ -164,7 +164,7 @@ async function startRun() {
         ]));
         if (est.est_cost_usd > 0) {
             modalBody.appendChild(el('p', { style: 'color:#7c7cff; font-size:18px; font-weight:600; margin-top:8px;' }, [
-                'Estimated cost: $' + est.est_cost_usd.toFixed(2)
+                'Max estimated cost: $' + est.est_cost_usd.toFixed(2)
             ]));
             modalBody.appendChild(el('p', { style: 'color:#666; font-size:11px; margin-top:2px;' }, [
                 'Using ' + est.model
@@ -301,7 +301,7 @@ async function estimateCost() {
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        var costStr = data.est_cost_usd > 0 ? ' \u2248 $' + data.est_cost_usd.toFixed(2) : '';
+        var costStr = data.est_cost_usd > 0 ? ' \u2248 max $' + data.est_cost_usd.toFixed(2) : '';
         showToast('Est: ' + data.digs + ' DIGs \u00d7 ' + data.max_calls_per_dig + ' calls = ' + data.max_total_calls + ' max calls' + costStr + ' (' + data.model + ')');
     } catch (e) {
         showError('Estimate failed');
