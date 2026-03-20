@@ -43,9 +43,9 @@ def _make_request(client, prompt: str, max_tokens: int = 4096) -> tuple[str, int
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = resp.choices[0].message.content
-        input_tokens = resp.usage.prompt_tokens
-        output_tokens = resp.usage.completion_tokens
+        text = resp.choices[0].message.content or ""
+        input_tokens = resp.usage.prompt_tokens if resp.usage else 0
+        output_tokens = resp.usage.completion_tokens if resp.usage else 0
         # OpenRouter may include actual cost in usage
         actual_cost = None
         if hasattr(resp.usage, 'total_cost'):
@@ -110,6 +110,9 @@ def call_llm(
 
             text, input_tokens, output_tokens, actual_cost = _make_request(client, prompt, max_tokens)
 
+            if not text:
+                raise ValueError("LLM returned empty response")
+
             logger.debug(f"Response length: {len(text)} chars")
             cost_tracker.record(
                 call_type=call_type,
@@ -120,6 +123,9 @@ def call_llm(
             )
 
             json_text = _extract_json(text)
+            if not json_text:
+                logger.error(f"No JSON found in response. Raw text: {text[:500]}")
+                raise ValueError(f"LLM response contained no JSON. Raw response starts with: {text[:200]}")
             return json.loads(json_text)
 
         except retry_exceptions as e:
@@ -130,10 +136,16 @@ def call_llm(
             else:
                 logger.error(f"API call failed after {MAX_RETRIES} attempts: {e}")
                 raise
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from API response: {e}")
-            logger.debug(f"Raw response: {text}")
-            raise
+        except (json.JSONDecodeError, ValueError) as e:
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAYS[attempt]
+                logger.warning(f"Bad response (attempt {attempt + 1}): {e}. Retrying in {delay}s...")
+                logger.debug(f"Raw response: {text}")
+                time.sleep(delay)
+            else:
+                logger.error(f"Failed to get valid JSON after {MAX_RETRIES} attempts: {e}")
+                logger.debug(f"Raw response: {text}")
+                raise
 
 
 def create_client():
