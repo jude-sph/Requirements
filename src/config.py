@@ -36,11 +36,11 @@ MODEL_PRICING = {
     "claude-haiku-4-5": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
     # OpenRouter models
     "anthropic/claude-sonnet-4": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
-    "anthropic/claude-haiku-4": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
+    "anthropic/claude-haiku-4.5": {"input_per_mtok": 0.80, "output_per_mtok": 4.00},
     "google/gemini-2.5-flash": {"input_per_mtok": 0.15, "output_per_mtok": 0.60},
     "google/gemini-2.5-pro": {"input_per_mtok": 1.25, "output_per_mtok": 10.00},
     "deepseek/deepseek-chat-v3-0324": {"input_per_mtok": 0.27, "output_per_mtok": 1.10},
-    "deepseek/deepseek-reasoner": {"input_per_mtok": 0.55, "output_per_mtok": 2.19},
+    "deepseek/deepseek-r1": {"input_per_mtok": 0.55, "output_per_mtok": 2.19},
     "openai/gpt-4o-mini": {"input_per_mtok": 0.15, "output_per_mtok": 0.60},
     "openai/gpt-4o": {"input_per_mtok": 2.50, "output_per_mtok": 10.00},
     "meta-llama/llama-4-maverick": {"input_per_mtok": 0.20, "output_per_mtok": 0.60},
@@ -76,7 +76,7 @@ MODEL_CATALOGUE = [
         "cons": ["Slightly higher latency (extra hop)", "Same price as direct"],
     },
     {
-        "id": "anthropic/claude-haiku-4", "name": "Claude Haiku 4 (OpenRouter)", "provider": "openrouter",
+        "id": "anthropic/claude-haiku-4.5", "name": "Claude Haiku 4 (OpenRouter)", "provider": "openrouter",
         "price": "$0.80 / $4 per Mtok", "cost_per_dig": "~$0.05-0.10",
         "quality": "good", "speed": "fast",
         "description": "Claude Haiku via OpenRouter. Fast and cheap.",
@@ -108,7 +108,7 @@ MODEL_CATALOGUE = [
         "cons": ["Output formatting can vary", "Less polished rationales"],
     },
     {
-        "id": "deepseek/deepseek-reasoner", "name": "DeepSeek R1 Reasoner", "provider": "openrouter",
+        "id": "deepseek/deepseek-r1", "name": "DeepSeek R1 Reasoner", "provider": "openrouter",
         "price": "$0.55 / $2.19 per Mtok", "cost_per_dig": "~$0.05-0.15",
         "quality": "very good", "speed": "slow",
         "description": "Chain-of-thought reasoning model. Excels at complex decomposition logic but slower due to extended thinking. Good for difficult requirements.",
