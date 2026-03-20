@@ -621,6 +621,28 @@ async function saveSettings() {
     }
 }
 
+// Restart notice (persistent, can't be dismissed)
+function showRestartNotice() {
+    // Replace update banner with restart notice
+    var banner = document.getElementById('update-banner');
+    banner.style.display = '';
+    banner.style.background = '#2a2a15';
+    banner.style.borderColor = '#5a5a20';
+    var bannerText = document.getElementById('update-banner-text');
+    bannerText.textContent = '';
+    bannerText.style.color = '#ffcc00';
+
+    bannerText.appendChild(el('strong', { textContent: 'Update installed. ' }));
+    bannerText.appendChild(document.createTextNode('Please restart the server to apply changes. '));
+    bannerText.appendChild(el('span', { style: 'color: #aaa;', textContent: 'Stop the server (Ctrl+C) and run: reqdecomp --web' }));
+
+    // Remove the dismiss button and update button
+    var dismissBtn = banner.querySelector('.btn-dismiss');
+    if (dismissBtn) dismissBtn.style.display = 'none';
+    var updateBtn = banner.querySelector('.btn-update-banner');
+    if (updateBtn) updateBtn.style.display = 'none';
+}
+
 // Utilities
 function showError(msg) {
     var banner = document.getElementById('error-banner');
@@ -675,10 +697,9 @@ async function installUpdate() {
         var res = await fetch('/update', { method: 'POST' });
         var data = await res.json();
         if (data.status === 'ok' && data.updated) {
-            status.textContent = 'Updated! Restart server to apply.';
-            status.style.color = '#5a5';
+            status.textContent = '';
             btn.textContent = 'Updated';
-            showToast('Update installed. Restart the server to apply changes.');
+            showRestartNotice();
         } else if (data.status === 'ok') {
             status.textContent = data.message;
             status.style.color = '#5a5';
@@ -728,8 +749,8 @@ async function installUpdateFromBanner() {
         var res = await fetch('/update', { method: 'POST' });
         var data = await res.json();
         if (data.status === 'ok' && data.updated) {
-            document.getElementById('update-banner-text').textContent = 'Updated! Restart the server to apply changes.';
-            showToast('Update installed. Restart the server to apply.');
+            document.getElementById('update-banner').style.display = 'none';
+            showRestartNotice();
         } else if (data.status === 'ok') {
             banner.style.display = 'none';
             showToast(data.message);
