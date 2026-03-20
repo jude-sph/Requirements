@@ -324,6 +324,18 @@ async def result_detail(dig_id: str):
     return tree.model_dump()
 
 
+@app.get("/download-source")
+async def download_source():
+    """Download the source xlsx file."""
+    xlsx_path = config.CWD / "GTR-SDS.xlsx"
+    if not xlsx_path.exists():
+        xlsx_path = config.PACKAGE_ROOT / "GTR-SDS.xlsx"
+    if not xlsx_path.exists():
+        raise HTTPException(404, "No source xlsx found")
+    return FileResponse(xlsx_path, filename="GTR-SDS-source.xlsx",
+                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 @app.get("/export")
 async def export():
     config.OUTPUT_XLSX_DIR.mkdir(parents=True, exist_ok=True)

@@ -107,11 +107,24 @@ header {
 .results-header {
     display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
 }
+.results-actions { display: flex; gap: 8px; align-items: center; }
+.search-input {
+    background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 6px;
+    padding: 6px 12px; color: #fff; font-size: 12px; outline: none; width: 180px;
+}
+.search-input:focus { border-color: #4a4a8a; }
+.search-input::placeholder { color: #444; }
 .btn-export {
     background: #1a1a2e; color: #7c7cff; border: 1px solid #2a2a4a; border-radius: 6px;
     padding: 6px 14px; font-size: 12px; cursor: pointer;
 }
 .btn-export:hover { border-color: #4a4a8a; }
+.btn-copy {
+    background: none; border: 1px solid #2a2a4a; color: #888; border-radius: 4px;
+    padding: 2px 8px; font-size: 10px; cursor: pointer; margin-left: 6px;
+}
+.btn-copy:hover { border-color: #4a4a8a; color: #ccc; }
+.btn-copy.copied { color: #5a5; border-color: #3a5a3a; }
 
 /* Result cards */
 .result-card {

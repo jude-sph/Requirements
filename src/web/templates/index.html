@@ -32,15 +32,23 @@
     <section class="input-section">
         <div class="section-label">Input</div>
         <div class="input-row">
-            <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">
-                <input type="file" id="file-input" accept=".xlsx" style="display:none" onchange="handleUpload(this)">
-                <div id="upload-text">
-                    {% if dig_count > 0 %}
-                        📄 GTR-SDS.xlsx loaded — {{ dig_count }} DIGs
-                    {% else %}
-                        📂 Drop xlsx here or click to upload
-                    {% endif %}
+            <div style="flex:1;">
+                <div id="upload-area" class="upload-area" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" accept=".xlsx" style="display:none" onchange="handleUpload(this)">
+                    <div id="upload-text">
+                        {% if dig_count > 0 %}
+                            📄 GTR-SDS.xlsx loaded — {{ dig_count }} DIGs
+                        {% else %}
+                            📂 Drop xlsx here or click to upload
+                        {% endif %}
+                    </div>
                 </div>
+                {% if dig_count > 0 %}
+                <div style="margin-top:6px; display:flex; gap:8px;">
+                    <a href="/download-source" class="btn-secondary" style="text-decoration:none; font-size:11px; padding:4px 10px;">⬇ Source XLSX</a>
+                    <a href="/export" class="btn-secondary" style="text-decoration:none; font-size:11px; padding:4px 10px;">⬇ Results XLSX</a>
+                </div>
+                {% endif %}
             </div>
             <div class="controls">
                 <div class="slider-row">
@@ -85,10 +93,28 @@
     <section id="results-section" class="results-section">
         <div class="results-header">
             <div class="section-label" id="results-label">Results</div>
-            <button class="btn-export" onclick="downloadXlsx()">⬇ Download XLSX</button>
+            <div class="results-actions">
+                <input type="text" id="search-input" class="search-input" placeholder="Search DIGs..." oninput="filterResults()">
+                <button class="btn-export" onclick="downloadXlsx()">⬇ Download XLSX</button>
+            </div>
         </div>
         <div id="results-list"></div>
     </section>
+
+    <!-- Cost Confirm Modal -->
+    <div id="cost-modal" class="modal" style="display:none">
+        <div class="modal-content" style="width:360px">
+            <div class="modal-header">
+                <h3>Confirm Run</h3>
+                <button class="btn-icon" onclick="document.getElementById('cost-modal').style.display='none'">✕</button>
+            </div>
+            <div class="modal-body" id="cost-modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="document.getElementById('cost-modal').style.display='none'">Cancel</button>
+                <button class="btn-run" onclick="confirmRun()">▶ Run</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal" style="display:none">

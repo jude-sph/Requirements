@@ -40,27 +40,63 @@ async function handleUpload(input) {
     }
 }
 
-// Run
+// Run — with cost confirmation
+var pendingRunBody = null;
+
 async function startRun() {
-    const body = {
+    var body = {
         dig_ids: document.getElementById('dig-ids').value,
         max_depth: parseInt(document.getElementById('depth').value),
         max_breadth: parseInt(document.getElementById('breadth').value),
         skip_vv: !document.getElementById('vv').checked,
         skip_judge: !document.getElementById('judge').checked,
     };
+
+    // Get cost estimate first
     try {
-        const res = await fetch('/run', {
+        var estRes = await fetch('/dry-run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        var est = await estRes.json();
+        pendingRunBody = body;
+        var modalBody = document.getElementById('cost-modal-body');
+        modalBody.textContent = '';
+        modalBody.appendChild(el('p', { style: 'color:#ccc; font-size:13px; margin-bottom:12px;' }, [
+            est.digs + ' DIG(s) \u00d7 ' + est.max_calls_per_dig + ' max API calls each'
+        ]));
+        modalBody.appendChild(el('p', { style: 'color:#fff; font-size:15px; font-weight:500;' }, [
+            'Up to ' + est.max_total_calls + ' API calls'
+        ]));
+        modalBody.appendChild(el('p', { style: 'color:#888; font-size:11px; margin-top:8px;' }, [
+            'Actual calls will likely be fewer (depends on tree fan-out and early termination).'
+        ]));
+        document.getElementById('cost-modal').style.display = '';
+    } catch (e) {
+        // If estimate fails, just run directly
+        pendingRunBody = body;
+        confirmRun();
+    }
+}
+
+async function confirmRun() {
+    document.getElementById('cost-modal').style.display = 'none';
+    if (!pendingRunBody) return;
+    var body = pendingRunBody;
+    pendingRunBody = null;
+    try {
+        var res = await fetch('/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
         if (!res.ok) {
-            const err = await res.json();
+            var err = await res.json();
             showError(err.detail || 'Failed to start');
             return;
         }
-        const data = await res.json();
+        var data = await res.json();
         currentJobId = data.job_id;
         showProgress();
         connectSSE(data.job_id);
@@ -171,14 +207,30 @@ async function estimateCost() {
 }
 
 // Results
+var allResults = [];
+
 async function loadResults() {
     try {
-        const res = await fetch('/results');
-        const data = await res.json();
-        renderResults(data.results);
+        var res = await fetch('/results');
+        var data = await res.json();
+        allResults = data.results;
+        renderResults(allResults);
     } catch (e) {
         console.error('Failed to load results', e);
     }
+}
+
+function filterResults() {
+    var query = document.getElementById('search-input').value.toLowerCase().trim();
+    if (!query) {
+        renderResults(allResults);
+        return;
+    }
+    var filtered = allResults.filter(function(r) {
+        return r.dig_id.toLowerCase().indexOf(query) !== -1 ||
+               r.dig_text.toLowerCase().indexOf(query) !== -1;
+    });
+    renderResults(filtered);
 }
 
 // Safe text element creator
@@ -284,7 +336,15 @@ function renderTreeNode(node) {
         dl.appendChild(el('dd', { textContent: value }));
     }
 
-    addField('Technical Requirement', node.technical_requirement);
+    // Technical requirement with copy button
+    if (node.technical_requirement) {
+        dl.appendChild(el('dt', { textContent: 'Technical Requirement' }));
+        var reqRow = el('dd', { style: 'display:flex; align-items:start; gap:4px;' }, [
+            el('span', { textContent: node.technical_requirement, style: 'flex:1;' }),
+            makeCopyBtn(node.technical_requirement),
+        ]);
+        dl.appendChild(reqRow);
+    }
     addField('Rationale', node.rationale);
     addField('Allocation', (node.allocation || '-') + ' \u2014 ' + (node.chapter_code || '-'));
     addField('System Hierarchy', node.system_hierarchy_id);
@@ -312,6 +372,23 @@ function renderTreeNode(node) {
 function toggleNodeDetail(nodeId) {
     var elem = document.getElementById(nodeId);
     elem.style.display = elem.style.display === 'none' ? 'block' : 'none';
+}
+
+// Copy to clipboard
+function makeCopyBtn(text) {
+    var btn = el('button', { className: 'btn-copy', textContent: 'Copy' });
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).then(function() {
+            btn.textContent = 'Copied';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        });
+    });
+    return btn;
 }
 
 // Export
