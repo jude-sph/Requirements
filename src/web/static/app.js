@@ -376,11 +376,15 @@ function renderResults(results) {
             el('span', { className: 'result-dig-id', textContent: 'DIG ' + r.dig_id }),
             el('span', { className: 'result-dig-text', textContent: r.dig_text }),
         ]);
+        var deleteBtn = el('span', { className: 'result-delete', title: 'Delete result' });
+        deleteBtn.textContent = '\u00d7';
+        deleteBtn.addEventListener('click', function(e) { e.stopPropagation(); deleteDig(r.dig_id); });
         var headerRight = el('div', { className: 'result-card-right' }, [
             el('span', { className: 'result-levels', textContent: r.levels + ' levels' }),
             el('span', { className: 'result-nodes', textContent: r.nodes + ' nodes' }),
             el('span', { className: 'result-cost', textContent: '$' + r.cost.toFixed(4) }),
             el('span', { className: 'result-arrow', id: 'arrow-' + r.dig_id, textContent: '\u25b8' }),
+            deleteBtn,
         ]);
         var header = el('div', { className: 'result-card-header', onclick: function() { toggleCard(r.dig_id); } }, [headerLeft, headerRight]);
         var body = el('div', { className: 'result-card-body', id: 'body-' + r.dig_id });
@@ -474,6 +478,27 @@ function renderTreeNode(node) {
 function toggleNodeDetail(nodeId) {
     var elem = document.getElementById(nodeId);
     elem.style.display = elem.style.display === 'none' ? 'block' : 'none';
+}
+
+// Delete result
+async function deleteDig(digId) {
+    if (!confirm('Delete result for DIG ' + digId + '?')) return;
+    try {
+        var res = await fetch('/results/' + digId, { method: 'DELETE' });
+        if (res.ok) {
+            var card = document.getElementById('card-' + digId);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(20px)';
+                setTimeout(function() { card.remove(); }, 300);
+            }
+            allResults = allResults.filter(function(r) { return r.dig_id !== digId; });
+            showToast('DIG ' + digId + ' deleted');
+        }
+    } catch (e) {
+        showError('Failed to delete');
+    }
 }
 
 // Copy to clipboard

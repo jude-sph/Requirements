@@ -185,6 +185,11 @@ header {
 .result-cost { color: #888; }
 .result-arrow { color: #555; transition: transform 0.2s; }
 .result-arrow.open { transform: rotate(90deg); }
+.result-delete {
+    color: #444; font-size: 16px; cursor: pointer; padding: 0 4px;
+    line-height: 1; border-radius: 3px;
+}
+.result-delete:hover { color: #f66; background: #2a1515; }
 .result-card-body {
     border-top: 1px solid #1a1a2e; padding: 12px 14px; display: none;
 }

@@ -318,6 +318,15 @@ async def result_detail(dig_id: str):
     return tree.model_dump()
 
 
+@app.delete("/results/{dig_id}")
+async def delete_result(dig_id: str):
+    json_path = config.OUTPUT_JSON_DIR / f"{dig_id}.json"
+    if not json_path.exists():
+        raise HTTPException(404, "Result not found")
+    json_path.unlink()
+    return {"status": "ok", "dig_id": dig_id}
+
+
 @app.get("/download-source")
 async def download_source():
     """Download the source xlsx file."""
