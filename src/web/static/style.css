@@ -263,6 +263,10 @@ header {
 }
 .model-card:hover { border-color: #3a3a5a; }
 .model-card.selected { border-color: #7c7cff; background: #111128; }
+.model-card.disabled {
+    opacity: 0.4; cursor: not-allowed;
+}
+.model-card.disabled:hover { border-color: #1e1e3a; }
 .model-card-name { color: #ccc; flex: 1; font-weight: 500; }
 .model-card-cost { color: #888; font-size: 11px; }
 .model-card-quality {

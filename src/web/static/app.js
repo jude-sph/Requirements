@@ -533,8 +533,9 @@ async function openSettings() {
         var res = await fetch('/settings');
         var data = await res.json();
         settingsModels = data.models;
+        settingsKeys = { anthropic: data.has_anthropic_key, openrouter: data.has_openrouter_key };
         selectedModelId = data.model;
-        renderModelCards(data.models, data.model);
+        renderModelCards(data.models, data.model, settingsKeys);
         document.getElementById('anthropic-key-status').textContent = data.has_anthropic_key ? 'Key is set' : 'Not set';
         document.getElementById('openrouter-key-status').textContent = data.has_openrouter_key ? 'Key is set' : 'Not set';
     } catch (e) {
@@ -542,20 +543,38 @@ async function openSettings() {
     }
 }
 
-function renderModelCards(models, currentModel) {
+var settingsKeys = { anthropic: false, openrouter: false };
+
+function isModelAvailable(model) {
+    if (model.provider === 'anthropic') return settingsKeys.anthropic;
+    if (model.provider === 'openrouter') return settingsKeys.openrouter;
+    return false;
+}
+
+function renderModelCards(models, currentModel, keys) {
+    settingsKeys = keys;
     var container = document.getElementById('model-cards');
     container.textContent = '';
     models.forEach(function(m) {
+        var available = isModelAvailable(m);
         var qualityClass = 'quality-' + (m.quality || 'good').replace(' ', '-');
         var card = el('div', {
-            className: 'model-card' + (m.id === currentModel ? ' selected' : ''),
+            className: 'model-card' + (m.id === currentModel ? ' selected' : '') + (!available ? ' disabled' : ''),
             'data-model-id': m.id,
         });
-        card.addEventListener('click', function() { selectModel(m.id); });
+        if (available) {
+            card.addEventListener('click', function() { selectModel(m.id); });
+        }
 
         var qualityBadge = el('span', { className: 'model-card-quality ' + qualityClass, textContent: m.quality || 'good' });
         var name = el('span', { className: 'model-card-name', textContent: m.name });
-        var cost = el('span', { className: 'model-card-cost', textContent: m.cost_per_dig });
+        var cost = el('span', { className: 'model-card-cost' });
+        if (available) {
+            cost.textContent = m.cost_per_dig;
+        } else {
+            cost.textContent = 'No ' + m.provider + ' key';
+            cost.style.color = '#664';
+        }
         var info = el('span', { className: 'model-card-info', textContent: '\u24d8' });
         info.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -571,6 +590,8 @@ function renderModelCards(models, currentModel) {
 }
 
 function selectModel(modelId) {
+    var model = settingsModels.find(function(m) { return m.id === modelId; });
+    if (model && !isModelAvailable(model)) return;
     selectedModelId = modelId;
     var cards = document.querySelectorAll('.model-card');
     cards.forEach(function(card) {
@@ -580,7 +601,6 @@ function selectModel(modelId) {
             card.classList.remove('selected');
         }
     });
-    // Hide info panel when selecting
     document.getElementById('model-info-panel').style.display = 'none';
 }
 
@@ -639,6 +659,14 @@ async function saveSettings() {
         });
         var data = await res.json();
         document.getElementById('model-name').textContent = model.name;
+        // Update key status and re-render cards (new keys may have been entered)
+        var newKeys = {
+            anthropic: settingsKeys.anthropic || !!body.anthropic_key,
+            openrouter: settingsKeys.openrouter || !!body.openrouter_key,
+        };
+        renderModelCards(settingsModels, model.id, newKeys);
+        document.getElementById('anthropic-key-status').textContent = newKeys.anthropic ? 'Key is set' : 'Not set';
+        document.getElementById('openrouter-key-status').textContent = newKeys.openrouter ? 'Key is set' : 'Not set';
         closeSettings();
         showToast('Model set to ' + model.name);
     } catch (e) {
