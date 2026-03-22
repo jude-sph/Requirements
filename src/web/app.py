@@ -507,7 +507,18 @@ async def check_updates():
             return {"behind": 0, "available": False, "error": "No upstream branch set. Run: git branch --set-upstream-to=origin/main main"}
 
         behind = int(result.stdout.strip())
-        return {"behind": behind, "available": behind > 0}
+
+        # Get commit summaries for pending updates
+        commits = []
+        if behind > 0:
+            log = subprocess.run(
+                ["git", "log", "HEAD..@{u}", "--pretty=format:%s"],
+                capture_output=True, text=True, cwd=pkg_root, timeout=10,
+            )
+            if log.returncode == 0 and log.stdout.strip():
+                commits = [line for line in log.stdout.strip().splitlines() if line.strip()]
+
+        return {"behind": behind, "available": behind > 0, "commits": commits}
     except Exception as e:
         return {"behind": 0, "available": False, "error": str(e)}
 

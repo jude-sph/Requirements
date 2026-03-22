@@ -55,7 +55,14 @@ def _load_digs(ws, data: WorkbookData) -> None:
     for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
         if row[0] is None:
             continue
-        dig_id = str(int(float(row[0])))
+        raw_id = _strip(row[0])
+        if not raw_id:
+            continue
+        try:
+            dig_id = str(int(float(raw_id)))
+        except (ValueError, TypeError):
+            logger.warning(f"Row {i}: cannot parse DIG ID '{raw_id}' as a number, skipping")
+            continue
         dig_text = _strip(row[1])
         if not dig_text:
             continue

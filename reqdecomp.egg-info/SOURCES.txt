@@ -22,6 +22,8 @@ src/prompts.py
 src/refiner.py
 src/validator.py
 src/verifier.py
+src/web/__init__.py
+src/web/app.py
 tests/test_cost_tracker.py
 tests/test_decomposer.py
 tests/test_exporter.py

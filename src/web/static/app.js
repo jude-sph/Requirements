@@ -730,6 +730,23 @@ function showToast(msg) {
 }
 
 // Software updates
+
+function buildCommitList(commits) {
+    var list = el('ul', { style: 'margin:6px 0 0 0; padding-left:18px; font-size:12px; color:#aac; list-style:disc;' });
+    var shown = commits.slice(0, 10);
+    shown.forEach(function(msg) {
+        var li = el('li', { style: 'margin-bottom:2px;' });
+        li.textContent = msg;
+        list.appendChild(li);
+    });
+    if (commits.length > 10) {
+        var more = el('li', { style: 'color:#888; font-style:italic;' });
+        more.textContent = '...and ' + (commits.length - 10) + ' more';
+        list.appendChild(more);
+    }
+    return list;
+}
+
 async function checkForUpdates() {
     var btn = document.getElementById('update-btn');
     var status = document.getElementById('update-status');
@@ -745,7 +762,11 @@ async function checkForUpdates() {
             btn.disabled = false;
             btn.onclick = checkForUpdates;
         } else if (data.available) {
-            status.textContent = data.behind + ' update(s) available';
+            status.textContent = '';
+            status.appendChild(document.createTextNode(data.behind + ' update(s) available'));
+            if (data.commits && data.commits.length > 0) {
+                status.appendChild(buildCommitList(data.commits));
+            }
             status.style.color = '#7c7cff';
             btn.textContent = 'Install Update';
             btn.disabled = false;
@@ -806,8 +827,11 @@ async function checkUpdatesQuietly() {
         var data = await res.json();
         if (data.available) {
             var banner = document.getElementById('update-banner');
-            document.getElementById('update-banner-text').textContent =
-                '\u{1F6A2} ' + data.behind + ' update(s) available \u2014 new features and fixes ready to install!';
+            var bannerText = document.getElementById('update-banner-text');
+            bannerText.textContent = '\u{1F6A2} ' + data.behind + ' update(s) available \u2014 new features and fixes ready to install!';
+            if (data.commits && data.commits.length > 0) {
+                bannerText.appendChild(buildCommitList(data.commits));
+            }
             banner.style.display = '';
             banner.classList.add('update-banner-pulse');
             // Also mark settings button
@@ -815,7 +839,7 @@ async function checkUpdatesQuietly() {
             settingsBtn.textContent = '\u2699 Settings \u2022';
             settingsBtn.style.color = '#7c7cff';
             // First popup after 60 seconds always, then once per day
-            setTimeout(function() { showUpdateReminder(data.behind); }, 60000);
+            setTimeout(function() { showUpdateReminder(data.behind, data.commits); }, 60000);
             var lastNudge = localStorage.getItem('reqdecomp-last-update-nudge');
             var now = Date.now();
             var oneDay = 24 * 60 * 60 * 1000;
@@ -839,7 +863,7 @@ var UPDATE_NUDGES = [
     'Running an old version? That\u2019s not very IEEE 29481 of you.',
 ];
 
-function showUpdateReminder(count) {
+function showUpdateReminder(count, commits) {
     // Don't show if banner is already dismissed or update installed
     var banner = document.getElementById('update-banner');
     if (banner.style.background && banner.style.background.indexOf('2a2a15') !== -1) return; // restart notice showing
@@ -849,7 +873,13 @@ function showUpdateReminder(count) {
     popup.appendChild(el('div', { className: 'update-reminder-icon', textContent: '\u{1F4E6}' }));
     var textDiv = el('div', { className: 'update-reminder-text' });
     textDiv.appendChild(el('div', { style: 'font-weight:600; color:#fff; margin-bottom:4px;', textContent: count + ' update(s) available' }));
-    textDiv.appendChild(el('div', { style: 'color:#aaa; font-size:12px;', textContent: nudge }));
+    if (commits && commits.length > 0) {
+        var summaryList = buildCommitList(commits.slice(0, 5));
+        summaryList.style.margin = '4px 0';
+        textDiv.appendChild(summaryList);
+    } else {
+        textDiv.appendChild(el('div', { style: 'color:#aaa; font-size:12px;', textContent: nudge }));
+    }
     popup.appendChild(textDiv);
     var btnRow = el('div', { style: 'display:flex; gap:8px; margin-left:auto;' });
     var updateBtn = el('button', { className: 'btn-run', style: 'padding:6px 14px; font-size:12px;', textContent: 'Update Now' });
